@@ -1,0 +1,257 @@
+:root {
+  color-scheme: dark;
+  --bg: #07131f;
+  --bg-soft: #10253b;
+  --card: rgba(13, 30, 46, 0.84);
+  --card-border: rgba(143, 189, 255, 0.18);
+  --text: #eef6ff;
+  --muted: #9ab3ca;
+  --accent: #00c2a8;
+  --accent-2: #7dd3fc;
+  --shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(125, 211, 252, 0.2), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(0, 194, 168, 0.17), transparent 24%),
+    linear-gradient(160deg, var(--bg) 0%, #081a2a 45%, #030a11 100%);
+}
+
+.layout {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 56px;
+}
+
+.hero,
+.grid,
+.card,
+.section-head,
+.status-grid {
+  animation: enter 480ms ease;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+  padding: 22px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent-2);
+  font-size: 0.8rem;
+}
+
+h1,
+h2 {
+  margin: 0 0 12px;
+}
+
+h1 {
+  font-size: clamp(2rem, 4vw, 3.3rem);
+  line-height: 0.95;
+}
+
+h2 {
+  font-size: 1.15rem;
+}
+
+.lead,
+.hint {
+  color: var(--muted);
+}
+
+.status-grid,
+.stack,
+.list,
+.matches {
+  display: grid;
+  gap: 12px;
+}
+
+.status-pill {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.status-pill strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1rem;
+}
+
+.section-head {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.inline-form {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+input,
+button {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font: inherit;
+}
+
+input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  padding: 12px 14px;
+}
+
+button {
+  cursor: pointer;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, var(--accent), #0ea5e9);
+  color: #04111b;
+  font-weight: 700;
+}
+
+button.secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+
+.player-row,
+.match-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.player-top,
+.match-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(125, 211, 252, 0.12);
+  color: var(--accent-2);
+}
+
+.pill.loss {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.meta div,
+.match-meta {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.meta dt {
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.meta dd {
+  margin: 0;
+}
+
+.flash {
+  position: sticky;
+  bottom: 18px;
+  margin-top: 18px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.danger-button {
+  background: rgba(251, 113, 133, 0.14);
+  color: #ffd5dc;
+}
+
+a {
+  color: var(--accent-2);
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 800px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .layout {
+    width: min(100% - 20px, 1180px);
+    padding-top: 20px;
+  }
+}
