@@ -13,12 +13,42 @@ export function createWebServer(services) {
   app.use(express.static(publicDir));
   app.use("/api", createRouter(services));
 
-  app.use((error, _request, response, _next) => {
-    console.error("[web] request error:", error);
-    response.status(500).json({
+  app.use((error, request, response, _next) => {
+    const status = getHttpStatus(error);
+    console.error(`[web] ${request.method} ${request.path} failed:`, error);
+    response.status(status).json({
       error: error.message || "Erreur serveur."
     });
   });
 
   return app;
+}
+
+function getHttpStatus(error) {
+  const message = String(error?.message ?? "");
+
+  if (
+    message.includes("obligatoire") ||
+    message.includes("manquante") ||
+    message.includes("non configure") ||
+    message.includes("Definis un salon")
+  ) {
+    return 400;
+  }
+
+  if (
+    message.includes("introuvable") ||
+    message.includes("Impossible de recuperer le salon Discord configure")
+  ) {
+    return 404;
+  }
+
+  if (
+    message.includes("Bot Discord hors ligne") ||
+    message.includes("invalide ou refusee")
+  ) {
+    return 503;
+  }
+
+  return 500;
 }

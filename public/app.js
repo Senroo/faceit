@@ -58,7 +58,7 @@ function renderPlayers(players) {
           <div class="player-top">
             <div>
               <strong>${escapeHtml(player.nickname)}</strong>
-              <div class="hint">${escapeHtml(player.gameId ?? "cs2")} · lvl ${escapeHtml(String(player.skillLevel ?? "?"))} · elo ${escapeHtml(String(player.elo ?? "?"))}</div>
+              <div class="hint">${escapeHtml(player.gameId ?? "cs2")} - lvl ${escapeHtml(String(player.skillLevel ?? "?"))} - elo ${escapeHtml(String(player.elo ?? "?"))}</div>
             </div>
             <button class="danger-button" data-remove="${escapeAttribute(player.nickname)}">Retirer</button>
           </div>
@@ -105,11 +105,11 @@ function renderMatches(matches) {
               <div class="hint">${escapeHtml(match.competitionName)}</div>
             </div>
             <span class="pill ${match.result === "Defaite" ? "loss" : ""}">
-              ${escapeHtml(match.result)} · ${escapeHtml(match.score)}
+              ${escapeHtml(match.result)} - ${escapeHtml(match.score)}
             </span>
           </div>
           <div class="match-meta">
-            ${escapeHtml(match.map)} · ${escapeHtml(match.gameMode)} · K/D ${escapeHtml(String(match.playerStats.kd))}
+            ${escapeHtml(match.map)} - ${escapeHtml(match.gameMode)} - K/D ${escapeHtml(String(match.playerStats.kd))}
           </div>
           <a href="${match.faceitMatchUrl}" target="_blank" rel="noreferrer">Ouvrir le match FACEIT</a>
         </article>

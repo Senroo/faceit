@@ -71,6 +71,18 @@ export class FaceitService {
         // Keep the default detail string if the error body is not JSON.
       }
 
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("FACEIT_API_KEY invalide ou refusee.");
+      }
+
+      if (response.status === 404) {
+        if (pathname === "/players") {
+          throw new Error("Joueur FACEIT introuvable.");
+        }
+
+        throw new Error("Ressource FACEIT introuvable.");
+      }
+
       throw new Error(`Erreur FACEIT: ${detail}`);
     }
 
