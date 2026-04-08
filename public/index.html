@@ -3,26 +3,76 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FACEIT Match Tracker</title>
+    <title>FACEIT Performance Control Room</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <main class="layout">
-      <section class="hero card">
-        <div>
-          <p class="eyebrow">Discord + FACEIT</p>
-          <h1>Suivi des matchs FACEIT</h1>
+    <div class="bg-orb bg-orb-a"></div>
+    <div class="bg-orb bg-orb-b"></div>
+
+    <main class="shell">
+      <section class="hero-panel card">
+        <div class="hero-copy">
+          <p class="eyebrow">FACEIT Performance Control Room</p>
+          <h1>Un cockpit plus vivant pour tracker les joueurs, les perfs et les alerts Discord.</h1>
           <p class="lead">
-            Dashboard local pour suivre les joueurs, configurer le salon Discord
-            et verifier les derniers matchs detectes.
+            Slash commands, suivi de performance, sauvegarde exportable et stockage persistant pour Railway.
           </p>
+          <div class="command-ribbon">
+            <span>/faceit add</span>
+            <span>/faceit players</span>
+            <span>/faceit status</span>
+            <span>/faceit test</span>
+          </div>
         </div>
-        <div class="status-grid" id="health-grid"></div>
+        <div class="hero-side">
+          <div id="health-grid" class="signal-grid"></div>
+          <div id="storage-grid" class="storage-grid"></div>
+        </div>
       </section>
 
-      <section class="grid">
+      <section id="global-kpis" class="kpi-grid"></section>
+
+      <section class="grid-two">
         <article class="card">
-          <h2>Configuration</h2>
+          <div class="section-head">
+            <div>
+              <p class="section-tag">Tracking</p>
+              <h2>Joueurs suivis</h2>
+            </div>
+            <form id="player-form" class="inline-form">
+              <input id="nickname" name="nickname" placeholder="Pseudo FACEIT" />
+              <button type="submit">Ajouter</button>
+            </form>
+          </div>
+          <div id="player-deck" class="player-deck"></div>
+        </article>
+
+        <article class="card">
+          <div class="section-head">
+            <div>
+              <p class="section-tag">Ranking</p>
+              <h2>Leaderboard</h2>
+            </div>
+          </div>
+          <div id="leaderboard" class="leaderboard"></div>
+        </article>
+      </section>
+
+      <section class="grid-two">
+        <article class="card">
+          <div class="section-head">
+            <div>
+              <p class="section-tag">Configuration</p>
+              <h2>Parametres du bot</h2>
+            </div>
+          </div>
           <form id="settings-form" class="stack">
             <label>
               Salon Discord
@@ -41,41 +91,53 @@
         </article>
 
         <article class="card">
-          <h2>Actions</h2>
+          <div class="section-head">
+            <div>
+              <p class="section-tag">Ops</p>
+              <h2>Actions rapides</h2>
+            </div>
+          </div>
           <div class="stack">
             <button id="check-now">Verifier maintenant</button>
             <button id="test-notification" class="secondary">Envoyer une notification de test</button>
+            <button id="backup-download" class="ghost">Telecharger la sauvegarde</button>
             <p class="hint">
-              Les secrets ne sont pas modifies ici. Configure `DISCORD_BOT_TOKEN`
-              et `FACEIT_API_KEY` dans le fichier `.env`.
+              Pour Railway, garde `DATA_DIR=/data` et monte un volume pour conserver les joueurs et l'historique.
             </p>
           </div>
         </article>
       </section>
 
-      <section class="grid">
+      <section class="grid-two">
         <article class="card">
           <div class="section-head">
-            <h2>Joueurs suivis</h2>
-            <form id="player-form" class="inline-form">
-              <input id="nickname" name="nickname" placeholder="Pseudo FACEIT" />
-              <button type="submit">Ajouter</button>
-            </form>
+            <div>
+              <p class="section-tag">Runtime</p>
+              <h2>Etat live</h2>
+            </div>
           </div>
-          <div id="tracked-players" class="list"></div>
+          <dl class="meta-grid" id="runtime"></dl>
         </article>
 
         <article class="card">
-          <h2>Etat du bot</h2>
-          <dl class="meta" id="runtime"></dl>
+          <div class="section-head">
+            <div>
+              <p class="section-tag">Highlights</p>
+              <h2>Top performers</h2>
+            </div>
+          </div>
+          <div id="highlights" class="highlight-grid"></div>
         </article>
       </section>
 
       <section class="card">
         <div class="section-head">
-          <h2>Derniers matchs detectes</h2>
+          <div>
+            <p class="section-tag">Feed</p>
+            <h2>Derniers matchs detectes</h2>
+          </div>
         </div>
-        <div id="recent-matches" class="matches"></div>
+        <div id="recent-matches" class="match-grid"></div>
       </section>
 
       <p id="flash" class="flash" hidden></p>

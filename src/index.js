@@ -7,8 +7,8 @@ import { Store } from "./config/store.js";
 import { createWebServer } from "./web/server.js";
 
 const port = Number(process.env.PORT || 3000);
-const commandPrefix = process.env.DISCORD_COMMAND_PREFIX || "!faceit";
 const dataDir = process.env.DATA_DIR || "./data";
+const guildId = process.env.DISCORD_GUILD_ID || "";
 
 const store = new Store({ dataDir });
 await store.init();
@@ -21,7 +21,7 @@ let matchTracker;
 
 discordBot = new DiscordBot({
   token: process.env.DISCORD_BOT_TOKEN,
-  commandPrefix,
+  guildId,
   store,
   matchTracker: {
     addPlayer: (...args) => matchTracker.addPlayer(...args),

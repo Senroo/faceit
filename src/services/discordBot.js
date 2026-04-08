@@ -2,13 +2,13 @@ import {
   ChannelType,
   Client,
   GatewayIntentBits,
-  Partials
+  SlashCommandBuilder
 } from "discord.js";
 
 export class DiscordBot {
-  constructor({ token, commandPrefix, store, matchTracker }) {
+  constructor({ token, guildId, store, matchTracker }) {
     this.token = token;
-    this.commandPrefix = commandPrefix;
+    this.guildId = guildId;
     this.store = store;
     this.matchTracker = matchTracker;
     this.client = null;
@@ -26,33 +26,64 @@ export class DiscordBot {
     }
 
     this.client = new Client({
-      intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-      ],
-      partials: [Partials.Channel]
+      intents: [GatewayIntentBits.Guilds]
     });
 
-    this.client.once("ready", () => {
+    this.client.once("ready", async () => {
       this.ready = true;
       console.log(`[discord] connecte en tant que ${this.client.user.tag}`);
+
+      try {
+        await this.registerSlashCommands();
+      } catch (error) {
+        await this.store.setRuntime({
+          lastError: `Discord commands: ${error.message}`
+        });
+        console.error("[discord] slash command registration failed:", error);
+      }
     });
 
-    this.client.on("messageCreate", async (message) => {
-      if (message.author.bot || !message.guild || !message.content.startsWith(this.commandPrefix)) {
+    this.client.on("interactionCreate", async (interaction) => {
+      if (!interaction.isChatInputCommand() || interaction.commandName !== "faceit") {
         return;
       }
 
       try {
-        await this.handleCommand(message);
+        await this.handleCommand(interaction);
       } catch (error) {
-        console.error("[discord] command error:", error);
-        await message.reply(`Erreur: ${error.message}`);
+        console.error("[discord] interaction error:", error);
+        const payload = {
+          content: `Erreur: ${error.message}`,
+          ephemeral: true
+        };
+
+        if (interaction.deferred || interaction.replied) {
+          await interaction.followUp(payload);
+        } else {
+          await interaction.reply(payload);
+        }
       }
     });
 
     await this.client.login(this.token);
+  }
+
+  async registerSlashCommands() {
+    if (!this.client?.application) {
+      throw new Error("Application Discord indisponible pour enregistrer les commandes.");
+    }
+
+    const command = buildFaceitCommand().toJSON();
+
+    if (this.guildId) {
+      const guild = await this.client.guilds.fetch(this.guildId);
+      await guild.commands.set([command]);
+      console.log(`[discord] slash commands enregistrees sur le serveur ${this.guildId}`);
+      return;
+    }
+
+    await this.client.application.commands.set([command]);
+    console.log("[discord] slash commands enregistrees globalement");
   }
 
   async fetchTextChannel(channelId) {
@@ -61,7 +92,12 @@ export class DiscordBot {
     }
 
     const channel = await this.client.channels.fetch(channelId);
-    if (!channel || channel.type !== ChannelType.GuildText) {
+    if (!channel) {
+      return null;
+    }
+
+    const supportedTypes = [ChannelType.GuildText, ChannelType.GuildAnnouncement];
+    if (!supportedTypes.includes(channel.type)) {
       return null;
     }
 
@@ -77,62 +113,53 @@ export class DiscordBot {
     this.ready = false;
   }
 
-  async handleCommand(message) {
-    const parts = message.content
-      .slice(this.commandPrefix.length)
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean);
-    const command = (parts.shift() ?? "help").toLowerCase();
+  async handleCommand(interaction) {
+    const subcommand = interaction.options.getSubcommand();
 
-    switch (command) {
+    switch (subcommand) {
       case "help":
-        await message.reply(this.buildHelpMessage());
+        await interaction.reply({
+          content: buildHelpMessage(),
+          ephemeral: true
+        });
         break;
       case "status":
-        await message.reply(this.buildStatusMessage());
+        await interaction.reply({
+          content: this.buildStatusMessage(),
+          ephemeral: true
+        });
         break;
       case "players":
-      case "list":
-        await message.reply(this.buildPlayersMessage());
+        await interaction.reply({
+          content: this.buildPlayersMessage(),
+          ephemeral: true
+        });
         break;
       case "add":
-      case "track":
-        await this.handleAddCommand(message, parts);
+        await this.handleAddCommand(interaction);
         break;
       case "remove":
-      case "untrack":
-        await this.handleRemoveCommand(message, parts);
+        await this.handleRemoveCommand(interaction);
         break;
       case "channel":
-        await this.handleChannelCommand(message);
+        await this.handleChannelCommand(interaction);
         break;
       case "check":
-        await message.reply("Verification FACEIT en cours...");
+        await interaction.deferReply({ ephemeral: true });
         await this.matchTracker.checkNow();
-        await message.channel.send("Verification terminee.");
+        await interaction.editReply("Verification FACEIT terminee.");
         break;
       case "test":
+        await interaction.deferReply({ ephemeral: true });
         await this.matchTracker.sendTestNotification();
-        await message.reply("Notification de test envoyee.");
+        await interaction.editReply("Notification de test envoyee.");
         break;
       default:
-        await message.reply(`Commande inconnue. Utilise \`${this.commandPrefix} help\`.`);
+        await interaction.reply({
+          content: "Sous-commande inconnue.",
+          ephemeral: true
+        });
     }
-  }
-
-  buildHelpMessage() {
-    return [
-      `Commandes disponibles avec \`${this.commandPrefix}\` :`,
-      "help - affiche cette aide",
-      "status - etat du bot et du suivi",
-      "players - liste les joueurs suivis",
-      "add <pseudo> - ajoute un joueur FACEIT",
-      "remove <pseudo> - retire un joueur FACEIT",
-      "channel - definit le salon actuel pour les notifications",
-      "check - force une verification immediate",
-      "test - envoie une notification de test"
-    ].join("\n");
   }
 
   buildStatusMessage() {
@@ -163,38 +190,111 @@ export class DiscordBot {
       .join("\n");
   }
 
-  async handleAddCommand(message, parts) {
-    const nickname = parts.join(" ").trim();
-    if (!nickname) {
-      await message.reply(`Usage: \`${this.commandPrefix} add <pseudo>\``);
-      return;
-    }
-
+  async handleAddCommand(interaction) {
+    const nickname = interaction.options.getString("nickname", true).trim();
+    await interaction.deferReply({ ephemeral: true });
     const player = await this.matchTracker.addPlayer(nickname);
-    await message.reply(`Suivi active pour **${player.nickname}**.`);
+    await interaction.editReply(`Suivi active pour **${player.nickname}**.`);
   }
 
-  async handleRemoveCommand(message, parts) {
-    const nickname = parts.join(" ").trim();
-    if (!nickname) {
-      await message.reply(`Usage: \`${this.commandPrefix} remove <pseudo>\``);
-      return;
-    }
-
+  async handleRemoveCommand(interaction) {
+    const nickname = interaction.options.getString("nickname", true).trim();
     const result = await this.store.removeTrackedPlayerByNickname(nickname);
+
     if (!result.removed) {
-      await message.reply(`Aucun joueur suivi ne correspond a **${nickname}**.`);
+      await interaction.reply({
+        content: `Aucun joueur suivi ne correspond a **${nickname}**.`,
+        ephemeral: true
+      });
       return;
     }
 
-    await message.reply(`Suivi supprime pour **${result.removed.nickname}**.`);
+    await interaction.reply({
+      content: `Suivi supprime pour **${result.removed.nickname}**.`,
+      ephemeral: true
+    });
   }
 
-  async handleChannelCommand(message) {
+  async handleChannelCommand(interaction) {
     await this.store.updateSettings({
-      discordChannelId: message.channelId
+      discordChannelId: interaction.channelId
     });
 
-    await message.reply(`Les notifications seront envoyees dans <#${message.channelId}>.`);
+    await interaction.reply({
+      content: `Les notifications seront envoyees dans <#${interaction.channelId}>.`,
+      ephemeral: true
+    });
   }
+}
+
+function buildFaceitCommand() {
+  return new SlashCommandBuilder()
+    .setName("faceit")
+    .setDescription("Pilote le tracker FACEIT")
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("help")
+        .setDescription("Affiche l'aide du tracker FACEIT")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("status")
+        .setDescription("Affiche l'etat du bot et du suivi")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("players")
+        .setDescription("Liste les joueurs suivis")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("add")
+        .setDescription("Ajoute un joueur FACEIT au suivi")
+        .addStringOption((option) =>
+          option
+            .setName("nickname")
+            .setDescription("Pseudo FACEIT")
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("remove")
+        .setDescription("Retire un joueur FACEIT du suivi")
+        .addStringOption((option) =>
+          option
+            .setName("nickname")
+            .setDescription("Pseudo FACEIT")
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("channel")
+        .setDescription("Utilise le salon courant pour les notifications")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("check")
+        .setDescription("Force une verification immediate")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("test")
+        .setDescription("Envoie une notification de test")
+    );
+}
+
+function buildHelpMessage() {
+  return [
+    "Commandes disponibles via /faceit :",
+    "/faceit help",
+    "/faceit status",
+    "/faceit players",
+    "/faceit add nickname:<pseudo>",
+    "/faceit remove nickname:<pseudo>",
+    "/faceit channel",
+    "/faceit check",
+    "/faceit test"
+  ].join("\n");
 }

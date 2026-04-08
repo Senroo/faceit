@@ -1,21 +1,36 @@
 import express from "express";
+import { buildDashboardSummary } from "../services/performanceSummary.js";
 
 export function createRouter({ store, matchTracker, discordBot, faceitService }) {
   const router = express.Router();
 
   router.get("/state", (_request, response) => {
     const state = store.getState();
+    const storage = store.getStorageInfo();
     response.json({
+      metadata: state.metadata,
       settings: state.settings,
       trackedPlayers: state.trackedPlayers,
       recentMatches: state.recentMatches,
+      matchHistory: state.matchHistory,
       runtime: state.runtime,
       health: {
         faceitConfigured: faceitService.isConfigured(),
         discordConfigured: discordBot.isConfigured(),
         discordReady: discordBot.ready
-      }
+      },
+      storage,
+      analytics: buildDashboardSummary(state, storage)
     });
+  });
+
+  router.get("/backup", (_request, response) => {
+    const timestamp = new Date().toISOString().replaceAll(":", "-");
+    response
+      .status(200)
+      .set("Content-Type", "application/json")
+      .set("Content-Disposition", `attachment; filename="faceit-backup-${timestamp}.json"`)
+      .send(JSON.stringify(store.getBackupPayload(), null, 2));
   });
 
   router.post("/settings", async (request, response, next) => {

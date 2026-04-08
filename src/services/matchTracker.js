@@ -146,6 +146,7 @@ export class MatchTracker {
     const stats = await this.faceitService.getMatchStats(historyMatch.match_id);
     const firstRound = stats.rounds?.[0] ?? {};
     const teams = Array.isArray(firstRound.teams) ? firstRound.teams : [];
+    const gameId = player.gameId ?? this.store.getState().settings.gameId;
 
     const playerTeam = teams.find((team) =>
       Array.isArray(team.players) &&
@@ -171,9 +172,12 @@ export class MatchTracker {
       gameMode: firstRound.round_stats?.["Game Mode"] ?? historyMatch.game_mode ?? "Standard",
       startedAt: toIsoOrNull(historyMatch.started_at),
       finishedAt: toIsoOrNull(historyMatch.finished_at),
-      faceitMatchUrl: `https://www.faceit.com/en/cs2/room/${historyMatch.match_id}`,
+      faceitMatchUrl: `https://www.faceit.com/en/${gameId}/room/${historyMatch.match_id}`,
+      isWin: didWin,
       result: didWin ? "Victoire" : "Defaite",
       score: formatScore(teamScore, opponentScore),
+      teamScore: Number.isFinite(teamScore) ? teamScore : null,
+      opponentScore: Number.isFinite(opponentScore) ? opponentScore : null,
       elo: player.elo,
       skillLevel: player.skillLevel,
       playerStats: {

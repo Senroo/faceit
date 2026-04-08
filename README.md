@@ -1,26 +1,27 @@
 # FACEIT Discord Tracker
 
-Bot Discord avec interface web locale pour suivre des joueurs FACEIT et envoyer une notification a la fin de chaque match.
+Bot Discord avec interface web locale pour suivre des joueurs FACEIT, mesurer leurs performances et envoyer une notification a la fin de chaque match.
 
 ## Fonctionnalites
 
 - notifications Discord automatiques quand un nouveau match termine est detecte
-- commandes texte Discord pour piloter le bot directement depuis un serveur
-- dashboard web local pour voir l'etat du bot, les joueurs suivis et les derniers matchs
+- slash commands Discord avec `/faceit`
+- dashboard web plus riche avec leaderboard, highlights, stats globales et cartes joueurs
+- export de sauvegarde JSON depuis le dashboard
 - stockage local en JSON, sans base de donnees
 
-## Commandes Discord
+## Slash Commands Discord
 
-Le prefixe par defaut est `!faceit`.
+Le bot enregistre une commande `/faceit` avec sous-commandes :
 
-- `!faceit help`
-- `!faceit status`
-- `!faceit players`
-- `!faceit add <pseudo>`
-- `!faceit remove <pseudo>`
-- `!faceit channel`
-- `!faceit check`
-- `!faceit test`
+- `/faceit help`
+- `/faceit status`
+- `/faceit players`
+- `/faceit add nickname:<pseudo>`
+- `/faceit remove nickname:<pseudo>`
+- `/faceit channel`
+- `/faceit check`
+- `/faceit test`
 
 ## Installation
 
@@ -40,9 +41,9 @@ copy .env.example .env
 
 - `DATA_DIR`
 - `DISCORD_BOT_TOKEN`
+- `DISCORD_GUILD_ID`
 - `FACEIT_API_KEY`
 - `PORT`
-- `DISCORD_COMMAND_PREFIX`
 
 4. Lancer le projet :
 
@@ -59,9 +60,10 @@ http://localhost:3000
 ## Configuration Discord
 
 - cree un bot dans le portail Discord Developer
-- active l'intent `Message Content Intent`
-- invite le bot sur ton serveur avec les permissions de lecture/envoi de messages
-- utilise `!faceit channel` dans le salon souhaite pour definir le salon des notifications
+- invite le bot sur ton serveur avec les permissions de lecture/envoi de messages et embeds
+- si tu renseignes `DISCORD_GUILD_ID`, les slash commands seront enregistrees instantanement sur ton serveur de test
+- sinon le bot enregistre les commandes globalement et Discord peut prendre un peu de temps a les afficher
+- utilise `/faceit channel` dans le salon souhaite pour definir le salon des notifications
 
 ## Configuration FACEIT
 
@@ -74,6 +76,7 @@ http://localhost:3000
 - quand tu ajoutes un joueur, le bot prend le dernier match connu comme point de depart pour eviter de spammer les anciens matchs
 - si `DISCORD_BOT_TOKEN` ou `FACEIT_API_KEY` sont absents, le dashboard se lance quand meme, mais le suivi ne sera pas operationnel
 - l'etat du bot est stocke dans `DATA_DIR/state.json`
+- l'historique archive des matchs permet de calculer le leaderboard et les stats des joueurs
 
 ## Deploiement Railway
 
@@ -84,15 +87,16 @@ Le projet est pret pour Railway avec `railway.toml` et un endpoint `GET /health`
    - `PORT` sera fourni par Railway automatiquement
    - `DATA_DIR=/data`
    - `DISCORD_BOT_TOKEN=...`
+   - `DISCORD_GUILD_ID=...` pour enregistrer les slash commands instantanement sur ton serveur
    - `FACEIT_API_KEY=...`
-   - `DISCORD_COMMAND_PREFIX=!faceit`
 3. Attache un volume Railway monte sur `/data` pour conserver :
    - les joueurs suivis
    - le salon Discord configure
    - les matchs deja notifies
+   - les stats archivees du dashboard
 4. Deploie le service. Railway utilisera `npm start` et verifiera `/health`.
 
-Sans volume Railway, le bot redemarrera bien, mais il pourra oublier son etat apres un redeploiement.
+Sans volume Railway, le bot redemarrera bien, mais il pourra oublier son etat apres un redeploiement. Tu peux aussi telecharger une sauvegarde via le bouton du dashboard.
 
 ## Sources officielles utiles
 

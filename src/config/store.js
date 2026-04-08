@@ -2,6 +2,11 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const DEFAULT_STATE = {
+  metadata: {
+    schemaVersion: 2,
+    createdAt: null,
+    updatedAt: null
+  },
   settings: {
     gameId: "cs2",
     pollIntervalSeconds: 90,
@@ -10,6 +15,7 @@ const DEFAULT_STATE = {
   trackedPlayers: [],
   processedMatches: {},
   recentMatches: [],
+  matchHistory: [],
   runtime: {
     startedAt: null,
     lastPollAt: null,
@@ -42,11 +48,33 @@ export class Store {
     }
   }
 
+  getStorageInfo() {
+    return {
+      dataDir: this.dataDir,
+      stateFile: this.stateFile,
+      updatedAt: this.state.metadata.updatedAt,
+      createdAt: this.state.metadata.createdAt,
+      trackedPlayersCount: this.state.trackedPlayers.length,
+      matchHistoryCount: this.state.matchHistory.length
+    };
+  }
+
+  getBackupPayload() {
+    return this.getState();
+  }
+
   getState() {
     return structuredClone(this.state);
   }
 
   async save() {
+    const now = new Date().toISOString();
+    this.state.metadata = {
+      ...this.state.metadata,
+      schemaVersion: DEFAULT_STATE.metadata.schemaVersion,
+      createdAt: this.state.metadata.createdAt ?? now,
+      updatedAt: now
+    };
     await writeFile(this.tempFile, JSON.stringify(this.state, null, 2), "utf8");
     await rename(this.tempFile, this.stateFile);
   }
@@ -113,7 +141,19 @@ export class Store {
   }
 
   async addRecentMatch(matchSummary) {
-    this.state.recentMatches = [matchSummary, ...this.state.recentMatches].slice(0, 25);
+    const entry = {
+      ...matchSummary,
+      recordedAt: matchSummary.recordedAt ?? new Date().toISOString()
+    };
+    const dedupedRecent = this.state.recentMatches.filter(
+      (item) => !isSameTrackedMatch(item, entry)
+    );
+    const dedupedHistory = this.state.matchHistory.filter(
+      (item) => !isSameTrackedMatch(item, entry)
+    );
+
+    this.state.recentMatches = [entry, ...dedupedRecent].slice(0, 18);
+    this.state.matchHistory = [entry, ...dedupedHistory].slice(0, 300);
     await this.save();
     return this.getState();
   }
@@ -121,6 +161,10 @@ export class Store {
 
 function mergeState(base, incoming) {
   return {
+    metadata: {
+      ...base.metadata,
+      ...(incoming?.metadata ?? {})
+    },
     settings: {
       ...base.settings,
       ...(incoming?.settings ?? {})
@@ -135,9 +179,16 @@ function mergeState(base, incoming) {
     recentMatches: Array.isArray(incoming?.recentMatches)
       ? incoming.recentMatches
       : base.recentMatches,
+    matchHistory: Array.isArray(incoming?.matchHistory)
+      ? incoming.matchHistory
+      : base.matchHistory,
     runtime: {
       ...base.runtime,
       ...(incoming?.runtime ?? {})
     }
   };
+}
+
+function isSameTrackedMatch(left, right) {
+  return left?.matchId === right?.matchId && left?.trackedNickname === right?.trackedNickname;
 }
