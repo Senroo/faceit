@@ -44,6 +44,13 @@ function getHttpStatus(error) {
   }
 
   if (
+    message.includes("pas acces") ||
+    message.includes("pas la permission")
+  ) {
+    return 403;
+  }
+
+  if (
     message.includes("Bot Discord hors ligne") ||
     message.includes("invalide ou refusee")
   ) {

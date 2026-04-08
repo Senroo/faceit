@@ -45,7 +45,11 @@ export class NotificationService {
       embed.setURL(summary.faceitMatchUrl);
     }
 
-    await channel.send({ embeds: [embed] });
+    try {
+      await channel.send({ embeds: [embed] });
+    } catch (error) {
+      throw normalizeDiscordError(error);
+    }
   }
 
   async sendTestMessage(channelId) {
@@ -64,6 +68,31 @@ export class NotificationService {
       .setDescription("Le bot est connecte et les notifications de fin de match sont actives.")
       .setTimestamp(new Date());
 
-    await channel.send({ embeds: [embed] });
+    try {
+      await channel.send({ embeds: [embed] });
+    } catch (error) {
+      throw normalizeDiscordError(error);
+    }
   }
+}
+
+function normalizeDiscordError(error) {
+  const code = error?.code;
+  const message = String(error?.message ?? "");
+
+  if (code === 50001 || message.includes("Missing Access")) {
+    return new Error("Le bot n'a pas acces a ce salon Discord.");
+  }
+
+  if (code === 50013 || message.includes("Missing Permissions")) {
+    return new Error("Le bot n'a pas la permission d'envoyer des messages dans ce salon.");
+  }
+
+  if (code === 10003 || message.includes("Unknown Channel")) {
+    return new Error("Le salon Discord configure est introuvable.");
+  }
+
+  return error instanceof Error
+    ? error
+    : new Error("Erreur Discord inconnue.");
 }
