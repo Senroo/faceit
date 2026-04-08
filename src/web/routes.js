@@ -72,6 +72,13 @@ export function createRouter({ store, matchTracker, discordBot, faceitService })
     }
   });
 
+  router.get("/check-now", (_request, response) => {
+    response
+      .status(405)
+      .set("Allow", "POST")
+      .json({ error: "Utilise une requete POST pour lancer une verification." });
+  });
+
   router.post("/test-notification", async (_request, response, next) => {
     try {
       await matchTracker.sendTestNotification();
@@ -79,6 +86,13 @@ export function createRouter({ store, matchTracker, discordBot, faceitService })
     } catch (error) {
       next(error);
     }
+  });
+
+  router.get("/test-notification", (_request, response) => {
+    response
+      .status(405)
+      .set("Allow", "POST")
+      .json({ error: "Utilise une requete POST pour envoyer une notification de test." });
   });
 
   return router;
