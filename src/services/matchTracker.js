@@ -171,6 +171,8 @@ export class MatchTracker {
     return {
       matchId: historyMatch.match_id,
       trackedNickname: player.nickname,
+      avatar: player.avatar ?? null,
+      faceitProfileUrl: player.faceitUrl ?? null,
       competitionName:
         historyMatch.competition_name ??
         firstRound.round_stats?.Competition ??
@@ -180,6 +182,7 @@ export class MatchTracker {
       startedAt: toIsoOrNull(historyMatch.started_at),
       finishedAt: toIsoOrNull(historyMatch.finished_at),
       faceitMatchUrl: `https://www.faceit.com/en/${gameId}/room/${historyMatch.match_id}`,
+      duration: formatDuration(historyMatch.started_at, historyMatch.finished_at),
       isWin: didWin,
       result: didWin ? "Victoire" : "Defaite",
       score: formatScore(teamScore, opponentScore),
@@ -289,4 +292,37 @@ function toIsoOrNull(timestamp) {
 
   const parsed = new Date(timestamp);
   return Number.isNaN(parsed.valueOf()) ? null : parsed.toISOString();
+}
+
+function formatDuration(startedAt, finishedAt) {
+  const start = toMillis(startedAt);
+  const end = toMillis(finishedAt);
+
+  if (!start || !end || end <= start) {
+    return "N/A";
+  }
+
+  const totalMinutes = Math.round((end - start) / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours > 0) {
+    return `${hours}h${String(minutes).padStart(2, "0")}`;
+  }
+
+  return `${minutes}m`;
+}
+
+function toMillis(timestamp) {
+  if (!timestamp) {
+    return 0;
+  }
+
+  const numeric = Number(timestamp);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return numeric < 1000000000000 ? numeric * 1000 : numeric;
+  }
+
+  const parsed = new Date(timestamp).valueOf();
+  return Number.isFinite(parsed) ? parsed : 0;
 }

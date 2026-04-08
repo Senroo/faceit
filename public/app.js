@@ -12,6 +12,11 @@ const chartPlayerSelect = document.querySelector("#chart-player");
 const chartMeta = document.querySelector("#chart-meta");
 const performanceChart = document.querySelector("#performance-chart");
 const trendStrip = document.querySelector("#trend-strip");
+const playerDetailSummary = document.querySelector("#player-detail-summary");
+const kdChart = document.querySelector("#kd-chart");
+const killsChart = document.querySelector("#kills-chart");
+const heatGrid = document.querySelector("#heat-grid");
+const kdChartTitle = document.querySelector("#kd-chart-title");
 
 const settingsForm = document.querySelector("#settings-form");
 const playerForm = document.querySelector("#player-form");
@@ -20,6 +25,7 @@ const testNotificationButton = document.querySelector("#test-notification");
 const backupDownloadButton = document.querySelector("#backup-download");
 
 let currentState = null;
+let focusedPlayerNickname = "";
 
 async function loadState() {
   const response = await fetch("/api/state");
@@ -38,6 +44,7 @@ async function loadState() {
   renderChartControls(state.analytics);
   renderChart();
   renderTrendStrip(state.analytics.playerCards);
+  renderPlayerLab(state.analytics.playerCards);
 }
 
 function renderHealth(health) {
@@ -178,11 +185,11 @@ function renderLeaderboard(entries) {
           <span class="leader-rank">#${index + 1}</span>
           <div class="leader-copy">
             <strong>${escapeHtml(entry.nickname)}</strong>
-            <span class="tiny">${escapeHtml(String(entry.metrics.matches))} matchs - ${escapeHtml(String(entry.metrics.winRate))}% WR - ${escapeHtml(String(entry.metrics.averageKd))} K/D</span>
+            <span class="tiny">${escapeHtml(String(entry.elo ?? "?"))} ELO - ${escapeHtml(String(entry.metrics.winRate))}% WR - ${escapeHtml(String(entry.metrics.averageKd))} K/D</span>
           </div>
           <div class="leader-score">
-            <strong>${escapeHtml(String(entry.metrics.impactScore))}</strong>
-            <span class="tiny">impact</span>
+            <strong>${escapeHtml(String(entry.skillLevel ?? "?"))}</strong>
+            <span class="tiny">lvl</span>
           </div>
         </article>
       `
@@ -362,8 +369,51 @@ function renderTrendStrip(players) {
           <div class="tiny">${escapeHtml(String(player.metrics.averageKills))} kills avg - ${escapeHtml(String(player.metrics.averageKd))} K/D</div>
         </article>
       `
-    )
-    .join("");
+      )
+      .join("");
+}
+
+function renderPlayerLab(players) {
+  const activePlayers = players.filter((entry) => entry.metrics.matches > 0);
+  const player =
+    activePlayers.find((entry) => entry.nickname === focusedPlayerNickname) ??
+    activePlayers[0] ??
+    players[0] ??
+    null;
+
+  if (player) {
+    focusedPlayerNickname = player.nickname;
+  }
+
+  if (!player) {
+    playerDetailSummary.innerHTML = "<p class='hint'>Selectionne un joueur ou laisse le tracker importer ses matchs.</p>";
+    kdChart.innerHTML = "<p class='hint'>Pas encore de courbe K/D.</p>";
+    killsChart.innerHTML = "<p class='hint'>Pas encore de graphe kills.</p>";
+    heatGrid.innerHTML = "<p class='hint'>Pas encore de heat map.</p>";
+    return;
+  }
+
+  playerDetailSummary.innerHTML = `
+    <div class="detail-hero">
+      <div>
+        <h3>${escapeHtml(player.nickname)}</h3>
+        <div class="player-meta">${escapeHtml(String(player.elo ?? "?"))} ELO - lvl ${escapeHtml(String(player.skillLevel ?? "?"))}</div>
+      </div>
+      <span class="result-pill ${player.metrics.winRate >= 50 ? "win" : "loss"}">${escapeHtml(String(player.metrics.winRate))}% WR</span>
+    </div>
+    <div class="detail-stack">
+      <div class="detail-chip">K/D moyen: <strong>${escapeHtml(String(player.metrics.averageKd))}</strong></div>
+      <div class="detail-chip">Kills moyens: <strong>${escapeHtml(String(player.metrics.averageKills))}</strong></div>
+      <div class="detail-chip">Assists moyens: <strong>${escapeHtml(String(player.metrics.averageAssists))}</strong></div>
+      <div class="detail-chip">Forme: <strong>${escapeHtml(player.metrics.streak.label)}</strong></div>
+      <div class="detail-chip">Dernier match: <strong>${escapeHtml(player.lastMatch?.map ?? "N/A")}</strong></div>
+    </div>
+  `;
+
+  kdChartTitle.textContent = `Courbe K/D - ${player.nickname}`;
+  kdChart.innerHTML = renderMetricLineChart(player.chartSeries, "kd", 760, 210, 2);
+  killsChart.innerHTML = renderBarChart(player.chartSeries, "kills", 360, 180);
+  heatGrid.innerHTML = renderHeatCells(player.chartSeries);
 }
 
 function renderLineChart(series, isPlayerMode) {
@@ -423,6 +473,93 @@ function renderLineChart(series, isPlayerMode) {
       </text>
     </svg>
   `;
+}
+
+function renderMetricLineChart(series, key, width, height, digits = 0) {
+  if (!series?.length) {
+    return "<p class='hint'>Pas encore de donnees.</p>";
+  }
+
+  const padding = 26;
+  const values = series.map((entry) => Number(entry[key] ?? 0));
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
+  const safeRange = Math.max(1, maxValue - minValue);
+
+  const points = series.map((entry, index) => {
+    const x = padding + (index * (width - padding * 2)) / Math.max(1, series.length - 1);
+    const value = Number(entry[key] ?? 0);
+    const y = height - padding - ((value - minValue) / safeRange) * (height - padding * 2);
+    return {
+      x,
+      y,
+      value,
+      isWin: entry.isWin === true
+    };
+  });
+
+  const linePath = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+
+  return `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="metric chart">
+      <path class="chart-line" d="${linePath}"></path>
+      ${points
+        .map(
+          (point) =>
+            `<circle class="chart-point ${point.isWin ? "win" : "loss"}" cx="${point.x}" cy="${point.y}" r="4"></circle>`
+        )
+        .join("")}
+      <text class="chart-axis-label" x="6" y="18">${maxValue.toFixed(digits)}</text>
+      <text class="chart-axis-label" x="6" y="${height - 12}">${minValue.toFixed(digits)}</text>
+    </svg>
+  `;
+}
+
+function renderBarChart(series, key, width, height) {
+  if (!series?.length) {
+    return "<p class='hint'>Pas encore de donnees.</p>";
+  }
+
+  const padding = 20;
+  const values = series.map((entry) => Number(entry[key] ?? 0));
+  const maxValue = Math.max(1, ...values);
+  const barWidth = Math.max(16, (width - padding * 2) / Math.max(1, values.length) - 6);
+
+  const bars = values
+    .map((value, index) => {
+      const x = padding + index * ((width - padding * 2) / Math.max(1, values.length));
+      const barHeight = (value / maxValue) * (height - padding * 2);
+      const y = height - padding - barHeight;
+      return `<rect class="bar" x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="8"></rect>`;
+    })
+    .join("");
+
+  return `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="bar chart">
+      ${bars}
+      <text class="chart-axis-label" x="6" y="18">${maxValue.toFixed(0)}</text>
+      <text class="chart-axis-label" x="${width - 56}" y="${height - 8}">${values.length} matchs</text>
+    </svg>
+  `;
+}
+
+function renderHeatCells(series) {
+  if (!series?.length) {
+    return "<p class='hint'>Pas encore de heat map.</p>";
+  }
+
+  return series
+    .slice(-5)
+    .map(
+      (entry, index) => `
+        <div class="heat-cell ${entry.isWin ? "win" : "loss"}">
+          <span class="tiny">M${index + 1}</span>
+          <strong>${escapeHtml(entry.result === "Victoire" ? "W" : "L")}</strong>
+          <span class="tiny">${escapeHtml(String(entry.kd))} K/D</span>
+        </div>
+      `
+    )
+    .join("");
 }
 
 function renderSettings(settings) {
@@ -489,9 +626,11 @@ playerDeck.addEventListener("click", async (event) => {
 
   const focusPlayer = event.target.getAttribute("data-focus-player");
   if (focusPlayer) {
+    focusedPlayerNickname = focusPlayer;
     chartModeSelect.value = "player";
     chartPlayerSelect.value = focusPlayer;
     renderChart();
+    renderPlayerLab(currentState?.analytics?.playerCards ?? []);
     document.querySelector("#analytics")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 });
@@ -525,7 +664,9 @@ chartModeSelect.addEventListener("change", () => {
 });
 
 chartPlayerSelect.addEventListener("change", () => {
+  focusedPlayerNickname = chartPlayerSelect.value;
   renderChart();
+  renderPlayerLab(currentState?.analytics?.playerCards ?? []);
 });
 
 async function fetchJson(url, options) {

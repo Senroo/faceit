@@ -12,23 +12,12 @@ export class OpenRouterService {
     return Boolean(this.apiKey);
   }
 
-  async analyzePlayerProfile({ player, summary, recentMatches, taggedUserLabel }) {
+  async analyzePlayerProfile({ player, summary, recentMatches, taggedUserLabel, mode = "analyze" }) {
     if (!this.apiKey) {
       throw new Error("OPENROUTER_API_KEY manquante.");
     }
 
-    const systemPrompt = [
-      "Tu es un coach FACEIT francophone avec un ton fun, mordant mais jamais mechant.",
-      "Tu fais une analyse humoristique d'un joueur avec:",
-      "- 1 mini intro flashy",
-      "- 3 forces",
-      "- 3 faiblesses",
-      "- 3 conseils concrets et actionnables",
-      "- 1 punchline finale",
-      "Reste compact, lisible et adapte a Discord.",
-      "Pas de markdown complexe, pas de tableau.",
-      "Evite d'inventer des donnees absentes."
-    ].join(" ");
+    const systemPrompt = buildSystemPrompt(mode);
 
     const userPrompt = JSON.stringify(
       {
@@ -108,4 +97,33 @@ export class OpenRouterService {
 
     return content;
   }
+}
+
+function buildSystemPrompt(mode) {
+  if (mode === "roast") {
+    return [
+      "Tu es un analyste FACEIT francophone qui fait un roast amusant et joueur, jamais toxique.",
+      "Tu dois te moquer gentiment du profil avec du style streamer Discord.",
+      "Structure attendue:",
+      "- 1 intro dramatique courte",
+      "- 3 piques humoristiques basees sur les stats",
+      "- 3 points de progression utiles",
+      "- 1 conclusion qui relance la motivation",
+      "Reste compact, lisible et adapte a Discord.",
+      "Pas de markdown complexe, pas d'inventions."
+    ].join(" ");
+  }
+
+  return [
+    "Tu es un coach FACEIT francophone avec un ton fun, mordant mais jamais mechant.",
+    "Tu fais une analyse humoristique d'un joueur avec:",
+    "- 1 mini intro flashy",
+    "- 3 forces",
+    "- 3 faiblesses",
+    "- 3 conseils concrets et actionnables",
+    "- 1 punchline finale",
+    "Reste compact, lisible et adapte a Discord.",
+    "Pas de markdown complexe, pas de tableau.",
+    "Evite d'inventer des donnees absentes."
+  ].join(" ");
 }

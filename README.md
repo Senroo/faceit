@@ -19,6 +19,7 @@ Le bot enregistre une commande `/faceit` avec sous-commandes :
 - `/faceit players`
 - `/faceit leaderboard`
 - `/faceit analyze nickname:<pseudo> membre:@joueur`
+- `/faceit roast nickname:<pseudo> membre:@joueur`
 - `/faceit add nickname:<pseudo>`
 - `/faceit remove nickname:<pseudo>`
 - `/faceit channel`
@@ -71,6 +72,7 @@ http://localhost:3000
 - utilise `/faceit channel` dans le salon souhaite pour definir le salon des notifications
 - `/faceit add` importe aussi un lot d'anciens matchs pour alimenter le dashboard et le classement
 - `/faceit analyze` lance une analyse humouristique du profil avec OpenRouter
+- `/faceit roast` sort une version plus chambreuse et piquante du profil
 
 ## Configuration FACEIT
 

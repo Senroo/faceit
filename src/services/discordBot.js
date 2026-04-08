@@ -147,6 +147,9 @@ export class DiscordBot {
       case "analyze":
         await this.handleAnalyzeCommand(interaction);
         break;
+      case "roast":
+        await this.handleRoastCommand(interaction);
+        break;
       case "add":
         await this.handleAddCommand(interaction);
         break;
@@ -233,14 +236,14 @@ export class DiscordBot {
       const form = renderFormIcons(entry.metrics.recentForm);
       const kd = Number(entry.metrics.averageKd).toFixed(2);
       const winRate = Number(entry.metrics.winRate).toFixed(0);
-      return `${medal} **${index + 1}. ${entry.nickname}** - ${entry.elo ?? "?"} ELO (Lvl ${entry.skillLevel ?? "?"})\n└ K/D: **${kd}** - WR: **${winRate}%** - ${form}`;
+      return `${medal} **${entry.nickname}** - ${entry.elo ?? "?"} ELO (Lvl ${entry.skillLevel ?? "?"})\nL-K/D: **${kd}** - WR: **${winRate}%** - ${form}`;
     });
 
     const topPlayer = summary.leaderboard[0];
 
     const embed = new EmbedBuilder()
       .setColor(0xf59e0b)
-      .setTitle("Classement Faceit - Squad")
+      .setTitle("Classement Faceit - Groupe")
       .setDescription(lines.join("\n\n"))
       .setFooter({
         text: `Faceit Tracker - ${new Intl.DateTimeFormat("fr-FR", {
@@ -313,7 +316,8 @@ export class DiscordBot {
       player,
       summary: player,
       recentMatches,
-      taggedUserLabel: mentionLabel
+      taggedUserLabel: mentionLabel,
+      mode: "analyze"
     });
 
     const intro = buildAnalysisIntro(player);
@@ -325,6 +329,74 @@ export class DiscordBot {
         { name: "ELO / Level", value: `${player.elo ?? "?"} / ${player.skillLevel ?? "?"}`, inline: true },
         { name: "K/D moyen", value: String(player.metrics.averageKd), inline: true },
         { name: "Win rate", value: `${player.metrics.winRate}%`, inline: true }
+      );
+
+    if (player.avatar) {
+      embed.setThumbnail(player.avatar);
+    }
+
+    await interaction.editReply({
+      embeds: [embed],
+      allowedMentions: taggedUser ? { users: [taggedUser.id] } : undefined
+    });
+  }
+
+  async handleRoastCommand(interaction) {
+    const nickname = interaction.options.getString("nickname", true).trim();
+    const taggedUser = interaction.options.getUser("membre");
+    await interaction.deferReply({ ephemeral: false });
+
+    const summary = buildDashboardSummary(this.store.getState(), this.store.getStorageInfo());
+    const player = summary.playerCards.find(
+      (entry) => entry.nickname.toLowerCase() === nickname.toLowerCase()
+    );
+
+    if (!player) {
+      await interaction.editReply({
+        embeds: [
+          buildSimpleEmbed(
+            "Profil introuvable",
+            "Ce joueur n'est pas encore dans ton tracker. Ajoute-le d'abord avec `/faceit add`.",
+            0xef4444
+          )
+        ]
+      });
+      return;
+    }
+
+    if (!this.openRouterService?.isConfigured()) {
+      await interaction.editReply({
+        embeds: [
+          buildSimpleEmbed(
+            "IA non branchee",
+            "Ajoute `OPENROUTER_API_KEY` dans Railway pour debloquer le roast IA du profil.",
+            0xef4444
+          )
+        ]
+      });
+      return;
+    }
+
+    const recentMatches = summary.recentMatches.filter(
+      (match) => match.trackedNickname.toLowerCase() === player.nickname.toLowerCase()
+    );
+    const mentionLabel = taggedUser ? `<@${taggedUser.id}>` : `**${player.nickname}**`;
+    const roast = await this.openRouterService.analyzePlayerProfile({
+      player,
+      summary: player,
+      recentMatches,
+      taggedUserLabel: mentionLabel,
+      mode: "roast"
+    });
+
+    const embed = new EmbedBuilder()
+      .setColor(0xef4444)
+      .setTitle(`Roast Radar - ${player.nickname}`)
+      .setDescription(`${mentionLabel}, le radar a sorti la version sans filtre.\n\n${roast}`)
+      .addFields(
+        { name: "ELO", value: String(player.elo ?? "?"), inline: true },
+        { name: "K/D", value: String(player.metrics.averageKd), inline: true },
+        { name: "WR", value: `${player.metrics.winRate}%`, inline: true }
       );
 
     if (player.avatar) {
@@ -450,6 +522,23 @@ function buildFaceitCommand() {
     )
     .addSubcommand((subcommand) =>
       subcommand
+        .setName("roast")
+        .setDescription("Roast gentil du profil FACEIT via IA")
+        .addStringOption((option) =>
+          option
+            .setName("nickname")
+            .setDescription("Pseudo FACEIT")
+            .setRequired(true)
+        )
+        .addUserOption((option) =>
+          option
+            .setName("membre")
+            .setDescription("Membre Discord a mentionner dans le roast")
+            .setRequired(false)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
         .setName("add")
         .setDescription("Ajoute un joueur FACEIT au suivi")
         .addStringOption((option) =>
@@ -496,6 +585,7 @@ function buildHelpEmbed() {
         "`/faceit add nickname:<pseudo>`",
         "`/faceit leaderboard`",
         "`/faceit analyze nickname:<pseudo> membre:@joueur`",
+        "`/faceit roast nickname:<pseudo> membre:@joueur`",
         "`/faceit players`",
         "`/faceit status`",
         "`/faceit channel`",

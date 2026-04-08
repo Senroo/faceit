@@ -182,6 +182,43 @@ h2 {
   gap: 14px;
 }
 
+.player-lab-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.5fr);
+  gap: 18px;
+}
+
+.player-summary-card,
+.mini-chart-card {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 22px;
+}
+
+.player-summary-card {
+  padding: 20px;
+}
+
+.player-lab-graphs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.mini-chart-card {
+  padding: 18px;
+}
+
+.mini-chart-card.wide {
+  grid-column: 1 / -1;
+}
+
+.mini-chart-head {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
 .dashboard-nav {
   margin-top: 18px;
   display: flex;
@@ -543,6 +580,14 @@ button.ghost {
   padding: 14px;
 }
 
+.chart-stage.compact {
+  min-height: 220px;
+}
+
+.chart-stage.small {
+  min-height: 180px;
+}
+
 .chart-stage svg {
   width: 100%;
   height: 100%;
@@ -595,6 +640,54 @@ button.ghost {
 .trend-card strong {
   display: block;
   margin-top: 8px;
+}
+
+.detail-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.detail-stack {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.detail-chip {
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.heat-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.heat-cell {
+  min-height: 84px;
+  border-radius: 18px;
+  padding: 10px;
+  display: grid;
+  align-content: space-between;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.heat-cell.win {
+  background: linear-gradient(180deg, rgba(142, 255, 155, 0.22), rgba(142, 255, 155, 0.08));
+}
+
+.heat-cell.loss {
+  background: linear-gradient(180deg, rgba(255, 109, 142, 0.22), rgba(255, 109, 142, 0.08));
+}
+
+.bar {
+  fill: rgba(72, 168, 255, 0.75);
 }
 
 .highlight-card strong {
@@ -679,7 +772,8 @@ a {
 
 @media (max-width: 1100px) {
   .hero-panel,
-  .grid-two {
+  .grid-two,
+  .player-lab-layout {
     grid-template-columns: 1fr;
   }
 
@@ -703,7 +797,9 @@ a {
   .kpi-grid,
   .metrics-row,
   .form-row,
-  .match-metrics {
+  .match-metrics,
+  .player-lab-graphs,
+  .heat-grid {
     grid-template-columns: 1fr;
   }
 

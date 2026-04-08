@@ -23,24 +23,34 @@ export class NotificationService {
 
     const embed = new EmbedBuilder()
       .setColor(summary.result === "Victoire" ? 0x22c55e : 0xef4444)
-      .setTitle(`${summary.isWin ? "🔥" : "💀"} ${summary.trackedNickname} - ${summary.result}`)
-      .setDescription(buildMatchFlavor(summary))
+      .setAuthor({
+        name: `${summary.trackedNickname} - ${summary.result}`,
+        iconURL: summary.avatar || undefined,
+        url: summary.faceitProfileUrl || summary.faceitMatchUrl || undefined
+      })
+      .setTitle(`${summary.competitionName}`)
+      .setDescription(buildCompactMatchFlavor(summary))
       .addFields(
-        { name: "Competition", value: summary.competitionName, inline: false },
-        { name: "Map / Mode", value: `${summary.map} - ${summary.gameMode}`, inline: false },
+        { name: "Map", value: summary.map, inline: true },
         { name: "Score", value: summary.score, inline: true },
-        { name: "Momentum", value: summary.isWin ? "Le train est en marche" : "Besoin d'un reset mental", inline: true },
+        { name: "Duree", value: summary.duration || "N/A", inline: true },
+        { name: "ELO / Level", value: `${summary.elo ?? "?"} / ${summary.skillLevel ?? "?"}`, inline: true },
         {
-          name: "K / D / A",
-          value: `${summary.playerStats.kills} / ${summary.playerStats.deaths} / ${summary.playerStats.assists}`,
+          name: "KDA",
+          value: `${summary.playerStats.kills}/${summary.playerStats.deaths}/${summary.playerStats.assists}`,
           inline: true
         },
         { name: "K/D", value: String(summary.playerStats.kd), inline: true },
         { name: "K/R", value: String(summary.playerStats.kr), inline: true },
-        { name: "HS%", value: String(summary.playerStats.hs), inline: true }
+        { name: "HS%", value: String(summary.playerStats.hs), inline: true },
+        { name: "MVPs", value: String(summary.playerStats.mvps), inline: true }
       )
       .setTimestamp(summary.finishedAt ? new Date(summary.finishedAt) : new Date())
-      .setFooter({ text: `Match ID: ${summary.matchId}` });
+      .setFooter({ text: `FACEIT Tracker | Match ID ${summary.matchId}` });
+
+    if (summary.avatar) {
+      embed.setThumbnail(summary.avatar);
+    }
 
     if (summary.faceitMatchUrl) {
       embed.setURL(summary.faceitMatchUrl);
@@ -77,27 +87,27 @@ export class NotificationService {
   }
 }
 
-function buildMatchFlavor(summary) {
+function buildCompactMatchFlavor(summary) {
   const kd = Number.parseFloat(String(summary.playerStats.kd).replace(",", "."));
   const kills = Number.parseFloat(String(summary.playerStats.kills).replace(",", "."));
 
   if (summary.isWin && kd >= 1.3) {
-    return `Grosse perf sur **${summary.map}**. Ca sent le joueur qui a transforme la lobby en terrain prive.`;
+    return `Grosse perf. La lobby a surtout servi de terrain d'entrainement pour ${summary.trackedNickname}.`;
   }
 
   if (summary.isWin) {
-    return `Victoire validee sur **${summary.map}**. Pas le plus sale hold-up de l'histoire, mais les points sont bien a la maison.`;
+    return `Victoire propre. Les points sont a la maison et le lobby repart avec un petit traumatisme.`;
   }
 
   if (!summary.isWin && kills >= 20) {
-    return `Defaite sur **${summary.map}**, mais avec des chiffres qui disent clairement "mon dos porte encore l'equipe".`;
+    return `Defaite, mais les stats racontent surtout une histoire de sac a dos tres lourd.`;
   }
 
   if (!summary.isWin && kd < 0.9) {
-    return `Soiree compliquee sur **${summary.map}**. Le crosshair etait peut-etre encore dans l'echauffement.`;
+    return `Soiree compliquee. Le crosshair a pris le match avec quelques rounds de retard.`;
   }
 
-  return `Match termine sur **${summary.map}**. Ca pique un peu, mais il y a matiere a rebondir des la prochaine queue.`;
+  return `Match termine. Pas le meilleur chapitre, mais clairement pas la fin de saison.`;
 }
 
 function normalizeDiscordError(error) {

@@ -45,7 +45,7 @@ export function buildDashboardSummary(state, storageInfo = {}) {
     },
     leaderboard: sortCards(
       activePlayerCards,
-      (entry) => entry.metrics.impactScore
+      (entry) => Number(entry.elo ?? 0)
     ).slice(0, 8),
     playerCards: sortCards(playerCards, (entry) => entry.metrics.matches),
     recentMatches: recentMatches.slice(0, 12),
