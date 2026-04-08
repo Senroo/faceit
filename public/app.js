@@ -10,6 +10,9 @@ const adminStorage = document.querySelector("#admin-storage");
 const adminRuntime = document.querySelector("#admin-runtime");
 const adminDatabase = document.querySelector("#admin-database");
 const flash = document.querySelector("#flash");
+const matchModal = document.querySelector("#match-modal");
+const matchModalContent = document.querySelector("#match-modal-content");
+const matchModalCloseButton = document.querySelector("#match-modal-close");
 
 const overviewView = document.querySelector("#overview-view");
 const playerView = document.querySelector("#player-view");
@@ -213,9 +216,8 @@ function renderPlayerPage(playerNickname) {
     return;
   }
 
-  const playerMatches = currentState.analytics.recentMatches.filter(
-    (match) => match.trackedNickname.toLowerCase() === player.nickname.toLowerCase()
-  );
+  const playerMatches = getPlayerMatchHistory(player.nickname);
+  const selectedMatch = getSelectedMatch(player.nickname);
 
   playerPage.innerHTML = `
     <section class="player-hero card">
@@ -316,15 +318,22 @@ function renderPlayerPage(playerNickname) {
     <section class="card">
       <div class="section-head">
         <div>
-          <p class="section-tag">Recent feed</p>
-          <h2>Derniers matchs du joueur</h2>
+          <p class="section-tag">Match history</p>
+          <h2>Historique des parties</h2>
         </div>
+        <span class="tiny">${escapeHtml(String(playerMatches.length))} match(s) archives</span>
       </div>
       <div class="match-list">
-        ${playerMatches.length ? playerMatches.map(renderMatchCard).join("") : "<p class='hint'>Pas encore de match recent pour ce joueur.</p>"}
+        ${
+          playerMatches.length
+            ? playerMatches.map((match) => renderMatchCard(match, { detailed: true })).join("")
+            : "<p class='hint'>Pas encore de match archive pour ce joueur.</p>"
+        }
       </div>
     </section>
   `;
+
+  renderMatchModal(selectedMatch);
 }
 
 function renderRoute() {
@@ -334,6 +343,7 @@ function renderRoute() {
   adminView.hidden = true;
 
   if (path === "/admin") {
+    closeMatchModal({ preserveRoute: true });
     adminView.hidden = false;
     return;
   }
@@ -344,6 +354,7 @@ function renderRoute() {
     return;
   }
 
+  closeMatchModal({ preserveRoute: true });
   overviewView.hidden = false;
 }
 
@@ -392,17 +403,193 @@ function renderAnalysisColumn(title, items) {
   `;
 }
 
-function renderMatchCard(match) {
+function renderMatchCard(match, options = {}) {
+  const detailed = options.detailed === true;
+  const detailCta = detailed
+    ? `<button class="match-link" type="button" data-open-match="${escapeAttribute(match.matchId)}">Voir le recap</button>`
+    : "";
+
   return `
-    <article class="feed-card">
+    <article class="feed-card ${detailed ? "match-card clickable-card" : ""}" ${detailed ? `data-open-match="${escapeAttribute(match.matchId)}"` : ""}>
       <div class="feed-head">
         <strong>${escapeHtml(match.map)}</strong>
         <span class="pill ${match.isWin ? "win" : "loss"}">${escapeHtml(match.result)}</span>
       </div>
-      <div class="tiny">${escapeHtml(match.score)} - ${escapeHtml(formatDate(match.finishedAt))}</div>
+      <div class="tiny">${escapeHtml(match.competitionName || "Match FACEIT")} - ${escapeHtml(match.score)} - ${escapeHtml(formatDate(match.finishedAt))}</div>
       <div class="tiny">KDA ${escapeHtml(String(match.playerStats.kills))}/${escapeHtml(String(match.playerStats.deaths))}/${escapeHtml(String(match.playerStats.assists))}</div>
+      ${
+        detailed
+          ? `
+            <div class="match-meta-grid">
+              <span class="tiny">Mode ${escapeHtml(match.gameMode || "Standard")}</span>
+              <span class="tiny">Duree ${escapeHtml(match.duration || "N/A")}</span>
+              <span class="tiny">K/D ${escapeHtml(String(match.playerStats.kd))}</span>
+              <span class="tiny">HS ${escapeHtml(String(match.playerStats.hs))}%</span>
+            </div>
+            <div class="match-card-footer">
+              <span class="tiny">ID ${escapeHtml(shortenMatchId(match.matchId))}</span>
+              ${detailCta}
+            </div>
+          `
+          : ""
+      }
     </article>
   `;
+}
+
+function renderMatchModal(match) {
+  if (!match) {
+    closeMatchModal({ preserveRoute: true });
+    return;
+  }
+
+  matchModal.hidden = false;
+  document.body.classList.add("modal-open");
+  matchModalContent.innerHTML = `
+    <div class="match-detail-grid">
+      <article class="summary-card match-summary-hero">
+        <div class="feed-head">
+          <div>
+            <span class="tiny">Joueur suivi</span>
+            <strong>${escapeHtml(match.trackedNickname)}</strong>
+          </div>
+          <span class="result-pill ${match.isWin ? "win" : "loss"}">${escapeHtml(match.result)}</span>
+        </div>
+        <div class="match-summary-head">
+          <div>
+            <h3>${escapeHtml(match.competitionName || "Match FACEIT")}</h3>
+            <p class="hint">${escapeHtml(match.map || "Inconnue")} - ${escapeHtml(match.gameMode || "Standard")}</p>
+          </div>
+          <div class="match-summary-actions">
+            ${match.faceitMatchUrl ? `<a class="player-link inline-link" href="${match.faceitMatchUrl}" target="_blank" rel="noreferrer">Room FACEIT</a>` : ""}
+            ${match.faceitProfileUrl ? `<a class="player-link inline-link" href="${match.faceitProfileUrl}" target="_blank" rel="noreferrer">Profil joueur</a>` : ""}
+          </div>
+        </div>
+      </article>
+
+      <div class="summary-grid match-summary-grid">
+        ${buildSummaryCard("Score", match.score || "N/A", "Resultat du match")}
+        ${buildSummaryCard("Duree", match.duration || "N/A", "Temps total")}
+        ${buildSummaryCard("ELO", match.elo ?? "N/A", `Lvl ${match.skillLevel ?? "?"}`)}
+        ${buildSummaryCard("Date", formatDate(match.finishedAt), "Fin de partie")}
+      </div>
+
+      <div class="match-detail-stats">
+        ${renderStatTile("Kills", match.playerStats?.kills)}
+        ${renderStatTile("Deaths", match.playerStats?.deaths)}
+        ${renderStatTile("Assists", match.playerStats?.assists)}
+        ${renderStatTile("K/D", match.playerStats?.kd)}
+        ${renderStatTile("K/R", match.playerStats?.kr)}
+        ${renderStatTile("HS%", match.playerStats?.hs)}
+        ${renderStatTile("MVPs", match.playerStats?.mvps)}
+        ${renderStatTile("Match ID", shortenMatchId(match.matchId))}
+      </div>
+
+      <article class="analysis-card">
+        <h3>Lecture rapide</h3>
+        <ul>
+          <li>${escapeHtml(buildMatchInsight(match))}</li>
+          <li>${escapeHtml(buildMatchTempo(match))}</li>
+          <li>${escapeHtml(buildMatchClutch(match))}</li>
+        </ul>
+      </article>
+    </div>
+  `;
+}
+
+function renderStatTile(label, value) {
+  return `
+    <article class="summary-card stat-tile">
+      <span class="tiny">${escapeHtml(String(label))}</span>
+      <strong>${escapeHtml(String(value ?? "N/A"))}</strong>
+    </article>
+  `;
+}
+
+function buildMatchInsight(match) {
+  const kd = Number.parseFloat(String(match.playerStats?.kd ?? 0).replace(",", "."));
+  const kills = Number.parseFloat(String(match.playerStats?.kills ?? 0).replace(",", "."));
+
+  if (kd >= 1.2) {
+    return `Impact individuel fort avec ${safeText(match.playerStats?.kd)} de K/D et ${safeText(match.playerStats?.kills)} kills.`;
+  }
+
+  if (kills >= 20) {
+    return `Volume offensif solide avec ${safeText(match.playerStats?.kills)} kills sur la map.`;
+  }
+
+  return "Match plus discret individuellement, a lire avec le contexte collectif.";
+}
+
+function buildMatchTempo(match) {
+  if (match.duration && match.duration !== "N/A") {
+    return `Partie bouclee en ${match.duration}, avec un score final de ${safeText(match.score)}.`;
+  }
+
+  return `Score final ${safeText(match.score)} sur ${safeText(match.map)}.`;
+}
+
+function buildMatchClutch(match) {
+  const hs = Number.parseFloat(String(match.playerStats?.hs ?? 0).replace("%", "").replace(",", "."));
+  const mvps = Number.parseFloat(String(match.playerStats?.mvps ?? 0).replace(",", "."));
+
+  if (mvps >= 3) {
+    return `La feuille de match ressort ${safeText(match.playerStats?.mvps)} MVPs, donc une vraie influence dans les rounds cle.`;
+  }
+
+  if (hs >= 45) {
+    return `La precision est propre avec ${safeText(match.playerStats?.hs)}% de headshots.`;
+  }
+
+  return "Pas de pic statistique evident, mais le detail complet reste accessible pour le debrief.";
+}
+
+function getPlayerMatchHistory(nickname) {
+  return [...(currentState.matchHistory ?? [])]
+    .filter((match) => match.trackedNickname?.toLowerCase() === nickname.toLowerCase())
+    .sort((left, right) => dateValue(right.finishedAt) - dateValue(left.finishedAt));
+}
+
+function getSelectedMatch(playerNickname) {
+  const selectedMatchId = new URL(window.location.href).searchParams.get("match");
+  if (!selectedMatchId) {
+    return null;
+  }
+
+  return getPlayerMatchHistory(playerNickname).find((match) => match.matchId === selectedMatchId) ?? null;
+}
+
+function openMatchModal(matchId) {
+  const path = window.location.pathname;
+  if (!path.startsWith("/players/")) {
+    return;
+  }
+
+  const url = new URL(window.location.href);
+  url.searchParams.set("match", matchId);
+  history.pushState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  renderRoute();
+  highlightActiveNav();
+}
+
+function closeMatchModal(options = {}) {
+  matchModal.hidden = true;
+  matchModalContent.innerHTML = "";
+  document.body.classList.remove("modal-open");
+
+  if (options.preserveRoute) {
+    return;
+  }
+
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has("match")) {
+    return;
+  }
+
+  url.searchParams.delete("match");
+  history.pushState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  renderRoute();
+  highlightActiveNav();
 }
 
 function renderSeriesLineChart(series, key, width, height, digits) {
@@ -478,6 +665,12 @@ function renderHeatCells(series) {
 }
 
 document.addEventListener("click", (event) => {
+  const closeTarget = event.target.closest("[data-close-match-modal]");
+  if (closeTarget) {
+    closeMatchModal();
+    return;
+  }
+
   const navTarget = event.target.closest("[data-nav]");
   if (navTarget) {
     event.preventDefault();
@@ -490,6 +683,22 @@ document.addEventListener("click", (event) => {
     event.preventDefault();
     navigateTo(`/players/${encodeURIComponent(playerTarget.getAttribute("data-open-player"))}`);
     return;
+  }
+
+  const matchTarget = event.target.closest("[data-open-match]");
+  if (matchTarget) {
+    event.preventDefault();
+    openMatchModal(matchTarget.getAttribute("data-open-match"));
+  }
+});
+
+matchModalCloseButton.addEventListener("click", () => {
+  closeMatchModal();
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && matchModal.hidden === false) {
+    closeMatchModal();
   }
 });
 
@@ -605,6 +814,22 @@ function escapeHtml(value) {
 
 function escapeAttribute(value) {
   return escapeHtml(value);
+}
+
+function shortenMatchId(value) {
+  if (!value) {
+    return "N/A";
+  }
+
+  return String(value).slice(0, 8);
+}
+
+function safeText(value) {
+  return String(value ?? "N/A");
+}
+
+function dateValue(value) {
+  return value ? new Date(value).valueOf() : 0;
 }
 
 loadState().catch((error) => {

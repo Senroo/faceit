@@ -156,6 +156,27 @@
       </section>
 
       <p id="flash" class="flash" hidden></p>
+
+      <div id="match-modal" class="modal-shell" hidden>
+        <div class="modal-backdrop" data-close-match-modal></div>
+        <section class="modal-card card" aria-live="polite">
+          <div class="modal-head">
+            <div>
+              <p class="section-tag">Match detail</p>
+              <h2>Resume complet</h2>
+            </div>
+            <button
+              id="match-modal-close"
+              class="ghost modal-close"
+              type="button"
+              aria-label="Fermer le detail du match"
+            >
+              Fermer
+            </button>
+          </div>
+          <div id="match-modal-content"></div>
+        </section>
+      </div>
     </main>
 
     <script src="/app.js" type="module"></script>
