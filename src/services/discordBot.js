@@ -4,6 +4,7 @@ import {
   GatewayIntentBits,
   SlashCommandBuilder
 } from "discord.js";
+import { buildDashboardSummary } from "./performanceSummary.js";
 
 export class DiscordBot {
   constructor({ token, guildId, store, matchTracker }) {
@@ -135,6 +136,12 @@ export class DiscordBot {
           ephemeral: true
         });
         break;
+      case "leaderboard":
+        await interaction.reply({
+          content: this.buildLeaderboardMessage(),
+          ephemeral: true
+        });
+        break;
       case "add":
         await this.handleAddCommand(interaction);
         break;
@@ -190,11 +197,28 @@ export class DiscordBot {
       .join("\n");
   }
 
+  buildLeaderboardMessage() {
+    const summary = buildDashboardSummary(this.store.getState(), this.store.getStorageInfo());
+    if (!summary.leaderboard.length) {
+      return "Le classement apparaitra des que des matchs auront ete archives.";
+    }
+
+    return [
+      "Classement FACEIT tracker :",
+      ...summary.leaderboard.map(
+        (entry, index) =>
+          `#${index + 1} ${entry.nickname} - impact ${entry.metrics.impactScore} - ${entry.metrics.winRate}% WR - ${entry.metrics.averageKd} K/D`
+      )
+    ].join("\n");
+  }
+
   async handleAddCommand(interaction) {
     const nickname = interaction.options.getString("nickname", true).trim();
     await interaction.deferReply({ ephemeral: true });
     const player = await this.matchTracker.addPlayer(nickname);
-    await interaction.editReply(`Suivi active pour **${player.nickname}**.`);
+    await interaction.editReply(
+      `Suivi active pour **${player.nickname}**. ${player.backfilledMatches} ancien(s) match(s) ont ete importes dans l'historique.`
+    );
   }
 
   async handleRemoveCommand(interaction) {
@@ -248,6 +272,11 @@ function buildFaceitCommand() {
     )
     .addSubcommand((subcommand) =>
       subcommand
+        .setName("leaderboard")
+        .setDescription("Affiche le classement des joueurs suivis")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
         .setName("add")
         .setDescription("Ajoute un joueur FACEIT au suivi")
         .addStringOption((option) =>
@@ -291,6 +320,7 @@ function buildHelpMessage() {
     "/faceit help",
     "/faceit status",
     "/faceit players",
+    "/faceit leaderboard",
     "/faceit add nickname:<pseudo>",
     "/faceit remove nickname:<pseudo>",
     "/faceit channel",

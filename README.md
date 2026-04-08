@@ -17,6 +17,7 @@ Le bot enregistre une commande `/faceit` avec sous-commandes :
 - `/faceit help`
 - `/faceit status`
 - `/faceit players`
+- `/faceit leaderboard`
 - `/faceit add nickname:<pseudo>`
 - `/faceit remove nickname:<pseudo>`
 - `/faceit channel`
@@ -64,6 +65,7 @@ http://localhost:3000
 - si tu renseignes `DISCORD_GUILD_ID`, les slash commands seront enregistrees instantanement sur ton serveur de test
 - sinon le bot enregistre les commandes globalement et Discord peut prendre un peu de temps a les afficher
 - utilise `/faceit channel` dans le salon souhaite pour definir le salon des notifications
+- `/faceit add` importe aussi un lot d'anciens matchs pour alimenter le dashboard et le classement
 
 ## Configuration FACEIT
 
@@ -77,6 +79,7 @@ http://localhost:3000
 - si `DISCORD_BOT_TOKEN` ou `FACEIT_API_KEY` sont absents, le dashboard se lance quand meme, mais le suivi ne sera pas operationnel
 - l'etat du bot est stocke dans `DATA_DIR/state.json`
 - l'historique archive des matchs permet de calculer le leaderboard et les stats des joueurs
+- le dashboard inclut aussi une zone analytics avec progression en points de performance
 
 ## Deploiement Railway
 

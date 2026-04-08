@@ -39,7 +39,50 @@
 
       <section id="global-kpis" class="kpi-grid"></section>
 
-      <section class="grid-two">
+      <nav class="dashboard-nav card">
+        <a href="#analytics">Analytics</a>
+        <a href="#players">Players</a>
+        <a href="#ops">Ops</a>
+        <a href="#feed">Feed</a>
+      </nav>
+
+      <section id="analytics" class="grid-two">
+        <article class="card chart-card">
+          <div class="section-head">
+            <div>
+              <p class="section-tag">Analytics</p>
+              <h2>Progression des points de performance</h2>
+            </div>
+            <div class="chart-controls">
+              <label class="compact-label">
+                Vue
+                <select id="chart-mode">
+                  <option value="overview">Equipe</option>
+                  <option value="player">Joueur</option>
+                </select>
+              </label>
+              <label class="compact-label">
+                Joueur
+                <select id="chart-player"></select>
+              </label>
+            </div>
+          </div>
+          <div id="chart-meta" class="chart-meta"></div>
+          <div id="performance-chart" class="chart-stage"></div>
+        </article>
+
+        <article class="card">
+          <div class="section-head">
+            <div>
+              <p class="section-tag">Timeline</p>
+              <h2>Dernieres tendances</h2>
+            </div>
+          </div>
+          <div id="trend-strip" class="trend-strip"></div>
+        </article>
+      </section>
+
+      <section id="players" class="grid-two">
         <article class="card">
           <div class="section-head">
             <div>
@@ -65,7 +108,7 @@
         </article>
       </section>
 
-      <section class="grid-two">
+      <section id="ops" class="grid-two">
         <article class="card">
           <div class="section-head">
             <div>
@@ -130,7 +173,7 @@
         </article>
       </section>
 
-      <section class="card">
+      <section id="feed" class="card">
         <div class="section-head">
           <div>
             <p class="section-tag">Feed</p>

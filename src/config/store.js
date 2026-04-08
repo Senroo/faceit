@@ -140,7 +140,8 @@ export class Store {
     return this.getState();
   }
 
-  async addRecentMatch(matchSummary) {
+  async addRecentMatch(matchSummary, options = {}) {
+    const includeInRecent = options.includeInRecent !== false;
     const entry = {
       ...matchSummary,
       recordedAt: matchSummary.recordedAt ?? new Date().toISOString()
@@ -152,7 +153,9 @@ export class Store {
       (item) => !isSameTrackedMatch(item, entry)
     );
 
-    this.state.recentMatches = [entry, ...dedupedRecent].slice(0, 18);
+    this.state.recentMatches = includeInRecent
+      ? [entry, ...dedupedRecent].slice(0, 18)
+      : dedupedRecent.slice(0, 18);
     this.state.matchHistory = [entry, ...dedupedHistory].slice(0, 300);
     await this.save();
     return this.getState();

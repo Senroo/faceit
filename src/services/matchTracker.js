@@ -24,20 +24,27 @@ export class MatchTracker {
 
   async addPlayer(nickname) {
     const player = await this.faceitService.getPlayerByNickname(nickname);
-    const gameId = player.gameId ?? this.store.getState().settings.gameId;
-    const history = await this.faceitService.getPlayerHistory(player.playerId, gameId, 1);
+    const state = this.store.getState();
+    const existingPlayer = state.trackedPlayers.find(
+      (entry) => entry.playerId === player.playerId
+    );
+    const gameId = player.gameId ?? state.settings.gameId;
 
     await this.store.upsertTrackedPlayer({
       ...player,
       gameId,
-      addedAt: new Date().toISOString()
+      addedAt: existingPlayer?.addedAt ?? new Date().toISOString()
     });
 
-    if (history[0]?.match_id) {
-      await this.store.setProcessedMatch(player.playerId, history[0].match_id);
-    }
+    const backfilled = await this.backfillPlayerHistory({
+      ...player,
+      gameId
+    });
 
-    return player;
+    return {
+      ...player,
+      backfilledMatches: backfilled
+    };
   }
 
   async checkNow() {
@@ -134,7 +141,7 @@ export class MatchTracker {
     for (const match of pendingMatches.reverse()) {
       const summary = await this.buildMatchSummary(player, match);
       await this.notificationService.sendMatchFinished(summary);
-      await this.store.addRecentMatch(summary);
+      await this.store.addRecentMatch(summary, { includeInRecent: true });
     }
 
     if (history[0]?.match_id) {
@@ -190,6 +197,66 @@ export class MatchTracker {
         mvps: playerStats?.player_stats?.MVPs ?? "N/A"
       }
     };
+  }
+
+  async backfillPlayerHistory(player, options = {}) {
+    const pageSize = options.pageSize ?? 20;
+    const maxMatches = options.maxMatches ?? 25;
+    const gameId = player.gameId ?? this.store.getState().settings.gameId;
+    const state = this.store.getState();
+    const existingIds = new Set(
+      state.matchHistory
+        .filter((entry) => entry.trackedNickname?.toLowerCase() === player.nickname.toLowerCase())
+        .map((entry) => entry.matchId)
+    );
+
+    let offset = 0;
+    let imported = 0;
+    let newestMatchId = null;
+
+    while (imported < maxMatches) {
+      const history = await this.faceitService.getPlayerHistory(player.playerId, gameId, pageSize, offset);
+      if (!history.length) {
+        break;
+      }
+
+      if (!newestMatchId && history[0]?.match_id) {
+        newestMatchId = history[0].match_id;
+      }
+
+      const unseen = history.filter((entry) => !existingIds.has(entry.match_id));
+      if (!unseen.length) {
+        if (history.length < pageSize) {
+          break;
+        }
+
+        offset += pageSize;
+        continue;
+      }
+
+      for (const match of unseen.reverse()) {
+        if (imported >= maxMatches) {
+          break;
+        }
+
+        const summary = await this.buildMatchSummary(player, match);
+        await this.store.addRecentMatch(summary, { includeInRecent: false });
+        existingIds.add(match.match_id);
+        imported += 1;
+      }
+
+      if (history.length < pageSize) {
+        break;
+      }
+
+      offset += pageSize;
+    }
+
+    if (newestMatchId) {
+      await this.store.setProcessedMatch(player.playerId, newestMatchId);
+    }
+
+    return imported;
   }
 }
 

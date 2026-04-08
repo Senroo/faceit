@@ -21,17 +21,17 @@ export class FaceitService {
       nickname: data.nickname,
       country: data.country,
       avatar: data.avatar,
-      faceitUrl: data.faceit_url,
+      faceitUrl: buildFaceitPlayerUrl(data.nickname),
       gameId: cs2 ? (data.games.cs2 ? "cs2" : "csgo") : null,
       skillLevel: cs2?.skill_level ?? null,
       elo: cs2?.faceit_elo ?? null
     };
   }
 
-  async getPlayerHistory(playerId, gameId, limit = 20) {
+  async getPlayerHistory(playerId, gameId, limit = 20, offset = 0) {
     const data = await this.request(`/players/${playerId}/history`, {
       game: gameId,
-      offset: 0,
+      offset,
       limit
     });
 
@@ -88,4 +88,8 @@ export class FaceitService {
 
     return response.json();
   }
+}
+
+function buildFaceitPlayerUrl(nickname) {
+  return `https://www.faceit.com/fr/players/${encodeURIComponent(nickname)}`;
 }

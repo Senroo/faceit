@@ -7,6 +7,11 @@ const runtime = document.querySelector("#runtime");
 const highlights = document.querySelector("#highlights");
 const recentMatches = document.querySelector("#recent-matches");
 const flash = document.querySelector("#flash");
+const chartModeSelect = document.querySelector("#chart-mode");
+const chartPlayerSelect = document.querySelector("#chart-player");
+const chartMeta = document.querySelector("#chart-meta");
+const performanceChart = document.querySelector("#performance-chart");
+const trendStrip = document.querySelector("#trend-strip");
 
 const settingsForm = document.querySelector("#settings-form");
 const playerForm = document.querySelector("#player-form");
@@ -30,6 +35,9 @@ async function loadState() {
   renderHighlights(state.analytics.highlights);
   renderMatches(state.analytics.recentMatches);
   renderSettings(state.settings);
+  renderChartControls(state.analytics);
+  renderChart();
+  renderTrendStrip(state.analytics.playerCards);
 }
 
 function renderHealth(health) {
@@ -143,9 +151,10 @@ function renderPlayers(players) {
             <div class="tiny">
               ${player.lastMatch
                 ? `Last match: ${escapeHtml(player.lastMatch.result)} on ${escapeHtml(player.lastMatch.map)}`
-                : "No tracked match yet"}
+                : "Historical import in progress"}
             </div>
             <div class="player-actions">
+              <button class="ghost" data-focus-player="${escapeAttribute(player.nickname)}">Focus chart</button>
               <a class="player-link" href="${player.faceitUrl}" target="_blank" rel="noreferrer">Open FACEIT</a>
               <button class="danger-button" data-remove="${escapeAttribute(player.nickname)}">Retirer</button>
             </div>
@@ -169,7 +178,7 @@ function renderLeaderboard(entries) {
           <span class="leader-rank">#${index + 1}</span>
           <div class="leader-copy">
             <strong>${escapeHtml(entry.nickname)}</strong>
-            <span class="tiny">${escapeHtml(String(entry.metrics.matches))} matchs - ${escapeHtml(String(entry.metrics.winRate))}% WR</span>
+            <span class="tiny">${escapeHtml(String(entry.metrics.matches))} matchs - ${escapeHtml(String(entry.metrics.winRate))}% WR - ${escapeHtml(String(entry.metrics.averageKd))} K/D</span>
           </div>
           <div class="leader-score">
             <strong>${escapeHtml(String(entry.metrics.impactScore))}</strong>
@@ -203,19 +212,19 @@ function renderRuntime(data) {
 
 function renderHighlights(data) {
   const items = [
-    ["Best K/D", data.bestKd],
-    ["Best Win Rate", data.bestWinRate],
-    ["Most Active", data.mostActive]
+    ["Best K/D", data.bestKd, (entry) => `${entry.metrics.averageKd} K/D moyen`],
+    ["Best Win Rate", data.bestWinRate, (entry) => `${entry.metrics.winRate}% sur ${entry.metrics.matches} matchs`],
+    ["Most Active", data.mostActive, (entry) => `${entry.metrics.matches} matchs joues`]
   ];
 
   highlights.innerHTML = items
-    .map(([label, entry]) => {
+    .map(([label, entry, formatter]) => {
       if (!entry) {
         return `
           <article class="highlight-card">
             <div class="tiny">${escapeHtml(label)}</div>
-            <strong>No data yet</strong>
-            <p class="hint">Track more matches to unlock this slot.</p>
+            <strong>Import en attente</strong>
+            <p class="hint">Ajoute ou synchronise plus de matchs pour remplir cette carte.</p>
           </article>
         `;
       }
@@ -224,9 +233,7 @@ function renderHighlights(data) {
         <article class="highlight-card">
           <div class="tiny">${escapeHtml(label)}</div>
           <strong>${escapeHtml(entry.nickname)}</strong>
-          <p class="hint">
-            ${escapeHtml(String(entry.metrics.matches))} matchs - ${escapeHtml(String(entry.metrics.averageKd))} K/D - ${escapeHtml(String(entry.metrics.winRate))}% WR
-          </p>
+          <p class="hint">${escapeHtml(formatter(entry))}</p>
         </article>
       `;
     })
@@ -285,6 +292,139 @@ function renderMatches(matches) {
     .join("");
 }
 
+function renderChartControls(analytics) {
+  const players = analytics.playerCards.filter((entry) => entry.metrics.matches > 0);
+  const currentValue = chartPlayerSelect.value;
+  chartPlayerSelect.innerHTML = players.length
+    ? players
+        .map(
+          (player) => `
+            <option value="${escapeAttribute(player.nickname)}">${escapeHtml(player.nickname)}</option>
+          `
+        )
+        .join("")
+    : "<option value=''>No data</option>";
+
+  if (players.some((player) => player.nickname === currentValue)) {
+    chartPlayerSelect.value = currentValue;
+  } else if (players[0]) {
+    chartPlayerSelect.value = players[0].nickname;
+  }
+
+  chartPlayerSelect.disabled = chartModeSelect.value !== "player" || !players.length;
+}
+
+function renderChart() {
+  if (!currentState) {
+    return;
+  }
+
+  const analytics = currentState.analytics;
+  const isPlayerMode = chartModeSelect.value === "player";
+  const activeSeries = isPlayerMode
+    ? analytics.charts.players.find((entry) => entry.nickname === chartPlayerSelect.value)?.series ?? []
+    : analytics.charts.overview;
+
+  chartPlayerSelect.disabled = !isPlayerMode || !analytics.charts.players.length;
+
+  if (!activeSeries.length) {
+    chartMeta.innerHTML = "<span class='signal-pill'>Pas assez de donnees pour tracer un graphique.</span>";
+    performanceChart.innerHTML = "<p class='hint'>Ajoute un joueur puis laisse le backfill importer ses anciens matchs.</p>";
+    return;
+  }
+
+  const title = isPlayerMode ? `Vue joueur: ${chartPlayerSelect.value}` : "Vue equipe";
+  const latest = activeSeries[activeSeries.length - 1];
+  const metricLabel = isPlayerMode ? "points de forme" : "points cumules";
+
+  chartMeta.innerHTML = [
+    `<span class="signal-pill">${escapeHtml(title)}</span>`,
+    `<span class="signal-pill">Samples: ${escapeHtml(String(activeSeries.length))}</span>`,
+    `<span class="signal-pill">Latest ${escapeHtml(metricLabel)}: ${escapeHtml(String(latest.points ?? latest.value ?? 0))}</span>`
+  ].join("");
+
+  performanceChart.innerHTML = renderLineChart(activeSeries, isPlayerMode);
+}
+
+function renderTrendStrip(players) {
+  const active = players.filter((entry) => entry.metrics.matches > 0).slice(0, 4);
+  if (!active.length) {
+    trendStrip.innerHTML = "<p class='hint'>Les tendances apparaitront apres import des matchs.</p>";
+    return;
+  }
+
+  trendStrip.innerHTML = active
+    .map(
+      (player) => `
+        <article class="trend-card">
+          <div class="tiny">${escapeHtml(player.nickname)}</div>
+          <strong>${escapeHtml(String(player.metrics.impactScore))} impact</strong>
+          <div class="tiny">${escapeHtml(String(player.metrics.averageKills))} kills avg - ${escapeHtml(String(player.metrics.averageKd))} K/D</div>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function renderLineChart(series, isPlayerMode) {
+  const width = 760;
+  const height = 280;
+  const padding = 34;
+  const values = series.map((entry) => entry.points ?? entry.value ?? 0);
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
+  const safeRange = Math.max(1, maxValue - minValue);
+
+  const points = series.map((entry, index) => {
+    const x = padding + (index * (width - padding * 2)) / Math.max(1, series.length - 1);
+    const value = entry.points ?? entry.value ?? 0;
+    const y = height - padding - ((value - minValue) / safeRange) * (height - padding * 2);
+    return {
+      x,
+      y,
+      value,
+      label: entry.label,
+      className: entry.isWin === false || entry.result === "Defaite" ? "loss" : "win"
+    };
+  });
+
+  const linePath = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+  const areaPath = `${linePath} L ${points[points.length - 1].x} ${height - padding} L ${points[0].x} ${height - padding} Z`;
+  const gridValues = [minValue, minValue + safeRange / 2, maxValue];
+
+  return `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Performance chart">
+      ${gridValues
+        .map((gridValue) => {
+          const y = height - padding - ((gridValue - minValue) / safeRange) * (height - padding * 2);
+          return `
+            <line class="chart-grid-line" x1="${padding}" y1="${y}" x2="${width - padding}" y2="${y}"></line>
+            <text class="chart-axis-label" x="6" y="${y + 4}">${gridValue.toFixed(0)}</text>
+          `;
+        })
+        .join("")}
+      <path class="chart-area" d="${areaPath}"></path>
+      <path class="chart-line" d="${linePath}"></path>
+      ${points
+        .map(
+          (point, index) => `
+            <circle class="chart-point ${point.className}" cx="${point.x}" cy="${point.y}" r="5"></circle>
+            ${
+              index === points.length - 1
+                ? `<text class="chart-axis-label" x="${point.x - 10}" y="${point.y - 12}">${escapeHtml(String(point.value.toFixed(0)))}</text>`
+                : ""
+            }
+          `
+        )
+        .join("")}
+      <text class="chart-axis-label" x="${padding}" y="${height - 8}">1</text>
+      <text class="chart-axis-label" x="${width - padding - 26}" y="${height - 8}">
+        ${isPlayerMode ? "latest" : "team"}
+      </text>
+    </svg>
+  `;
+}
+
 function renderSettings(settings) {
   settingsForm.discordChannelId.value = settings.discordChannelId ?? "";
   settingsForm.gameId.value = settings.gameId ?? "cs2";
@@ -315,7 +455,7 @@ playerForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   try {
-    await fetchJson("/api/players", {
+    const result = await fetchJson("/api/players", {
       method: "POST",
       body: JSON.stringify({
         nickname: playerForm.nickname.value
@@ -323,7 +463,8 @@ playerForm.addEventListener("submit", async (event) => {
     });
 
     playerForm.reset();
-    showFlash("Joueur ajoute au suivi.");
+    const imported = result.player?.backfilledMatches ?? 0;
+    showFlash(`Joueur ajoute au suivi. ${imported} ancien(s) match(s) importes.`);
     await loadState();
   } catch (error) {
     showFlash(error.message, true);
@@ -331,20 +472,27 @@ playerForm.addEventListener("submit", async (event) => {
 });
 
 playerDeck.addEventListener("click", async (event) => {
-  const nickname = event.target.getAttribute("data-remove");
-  if (!nickname) {
+  const nicknameToRemove = event.target.getAttribute("data-remove");
+  if (nicknameToRemove) {
+    try {
+      await fetchJson(`/api/players/${encodeURIComponent(nicknameToRemove)}`, {
+        method: "DELETE"
+      });
+
+      showFlash("Joueur retire du suivi.");
+      await loadState();
+    } catch (error) {
+      showFlash(error.message, true);
+    }
     return;
   }
 
-  try {
-    await fetchJson(`/api/players/${encodeURIComponent(nickname)}`, {
-      method: "DELETE"
-    });
-
-    showFlash("Joueur retire du suivi.");
-    await loadState();
-  } catch (error) {
-    showFlash(error.message, true);
+  const focusPlayer = event.target.getAttribute("data-focus-player");
+  if (focusPlayer) {
+    chartModeSelect.value = "player";
+    chartPlayerSelect.value = focusPlayer;
+    renderChart();
+    document.querySelector("#analytics")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 });
 
@@ -369,6 +517,15 @@ testNotificationButton.addEventListener("click", async () => {
 
 backupDownloadButton.addEventListener("click", () => {
   window.location.href = "/api/backup";
+});
+
+chartModeSelect.addEventListener("change", () => {
+  chartPlayerSelect.disabled = chartModeSelect.value !== "player";
+  renderChart();
+});
+
+chartPlayerSelect.addEventListener("change", () => {
+  renderChart();
 });
 
 async function fetchJson(url, options) {

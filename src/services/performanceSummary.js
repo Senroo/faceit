@@ -6,6 +6,7 @@ export function buildDashboardSummary(state, storageInfo = {}) {
   const playerCards = trackedPlayers.map((player) =>
     buildPlayerCard(player, groupedByPlayer.get(player.nickname.toLowerCase()) ?? [])
   );
+  const activePlayerCards = playerCards.filter((entry) => entry.metrics.matches > 0);
 
   const globalMatches = matchHistory.length;
   const globalWins = matchHistory.filter((entry) => entry.isWin === true).length;
@@ -35,15 +36,15 @@ export function buildDashboardSummary(state, storageInfo = {}) {
         }))
     },
     highlights: {
-      bestKd: sortCards(playerCards, (entry) => entry.metrics.averageKd)[0] ?? null,
+      bestKd: sortCards(activePlayerCards, (entry) => entry.metrics.averageKd)[0] ?? null,
       bestWinRate: sortCards(
-        playerCards.filter((entry) => entry.metrics.matches >= 3),
+        activePlayerCards.filter((entry) => entry.metrics.matches >= 3),
         (entry) => entry.metrics.winRate
       )[0] ?? null,
-      mostActive: sortCards(playerCards, (entry) => entry.metrics.matches)[0] ?? null
+      mostActive: sortCards(activePlayerCards, (entry) => entry.metrics.matches)[0] ?? null
     },
     leaderboard: sortCards(
-      playerCards.filter((entry) => entry.metrics.matches > 0),
+      activePlayerCards,
       (entry) => entry.metrics.impactScore
     ).slice(0, 8),
     playerCards: sortCards(playerCards, (entry) => entry.metrics.matches),
@@ -58,6 +59,13 @@ export function buildDashboardSummary(state, storageInfo = {}) {
     totals: {
       wins: globalWins,
       losses: globalLosses
+    },
+    charts: {
+      overview: buildOverviewChart(matchHistory),
+      players: activePlayerCards.map((entry) => ({
+        nickname: entry.nickname,
+        series: buildPlayerTimeline(groupedByPlayer.get(entry.nickname.toLowerCase()) ?? [])
+      }))
     }
   };
 }
@@ -88,7 +96,7 @@ function buildPlayerCard(player, matches) {
   return {
     playerId: player.playerId,
     nickname: player.nickname,
-    faceitUrl: player.faceitUrl,
+    faceitUrl: buildFaceitProfileUrl(player.nickname),
     gameId: player.gameId,
     skillLevel: player.skillLevel,
     elo: player.elo,
@@ -109,6 +117,7 @@ function buildPlayerCard(player, matches) {
       recentForm,
       impactScore
     },
+    chartSeries: buildPlayerTimeline(matches),
     lastMatch: matches[0]
       ? {
           result: matches[0].result,
@@ -118,6 +127,42 @@ function buildPlayerCard(player, matches) {
         }
       : null
   };
+}
+
+function buildOverviewChart(matches) {
+  const sorted = [...matches].sort((left, right) => dateValue(left.finishedAt) - dateValue(right.finishedAt));
+  let runningScore = 0;
+
+  return sorted.map((match, index) => {
+    runningScore += computePerformancePoints(match);
+
+    return {
+      index: index + 1,
+      label: match.finishedAt ?? `Match ${index + 1}`,
+      value: runningScore,
+      result: match.result,
+      trackedNickname: match.trackedNickname
+    };
+  });
+}
+
+function buildPlayerTimeline(matches) {
+  const sorted = [...matches].sort((left, right) => dateValue(left.finishedAt) - dateValue(right.finishedAt));
+  let runningPoints = 0;
+
+  return sorted.map((match, index) => {
+    runningPoints += computePerformancePoints(match);
+
+    return {
+      index: index + 1,
+      label: match.finishedAt ?? `Match ${index + 1}`,
+      points: runningPoints,
+      kd: toNumber(match.playerStats?.kd),
+      kills: toNumber(match.playerStats?.kills),
+      result: match.result,
+      isWin: match.isWin === true
+    };
+  });
 }
 
 function groupMatchesByPlayer(matches) {
@@ -159,6 +204,20 @@ function computeStreak(matches) {
     count,
     positive: first
   };
+}
+
+function computePerformancePoints(match) {
+  return round(
+    toNumber(match.playerStats?.kills) +
+      toNumber(match.playerStats?.assists) * 0.6 +
+      toNumber(match.playerStats?.mvps) * 2.2 +
+      (match.isWin ? 8 : -2),
+    1
+  );
+}
+
+function buildFaceitProfileUrl(nickname) {
+  return `https://www.faceit.com/fr/players/${encodeURIComponent(nickname)}`;
 }
 
 function sortCards(items, selector) {
