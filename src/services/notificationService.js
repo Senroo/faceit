@@ -23,12 +23,13 @@ export class NotificationService {
 
     const embed = new EmbedBuilder()
       .setColor(summary.result === "Victoire" ? 0x22c55e : 0xef4444)
-      .setTitle(`FACEIT - ${summary.trackedNickname}`)
-      .setDescription(`${summary.result} sur ${summary.map}`)
+      .setTitle(`${summary.isWin ? "🔥" : "💀"} ${summary.trackedNickname} - ${summary.result}`)
+      .setDescription(buildMatchFlavor(summary))
       .addFields(
         { name: "Competition", value: summary.competitionName, inline: false },
+        { name: "Map / Mode", value: `${summary.map} - ${summary.gameMode}`, inline: false },
         { name: "Score", value: summary.score, inline: true },
-        { name: "Mode", value: summary.gameMode, inline: true },
+        { name: "Momentum", value: summary.isWin ? "Le train est en marche" : "Besoin d'un reset mental", inline: true },
         {
           name: "K / D / A",
           value: `${summary.playerStats.kills} / ${summary.playerStats.deaths} / ${summary.playerStats.assists}`,
@@ -64,8 +65,8 @@ export class NotificationService {
 
     const embed = new EmbedBuilder()
       .setColor(0x3b82f6)
-      .setTitle("FACEIT Tracker")
-      .setDescription("Le bot est connecte et les notifications de fin de match sont actives.")
+      .setTitle("🎯 FACEIT Tracker online")
+      .setDescription("Le bot est bien branche. Les notifs, le ranking et le trash talk analytique sont prets.")
       .setTimestamp(new Date());
 
     try {
@@ -74,6 +75,29 @@ export class NotificationService {
       throw normalizeDiscordError(error);
     }
   }
+}
+
+function buildMatchFlavor(summary) {
+  const kd = Number.parseFloat(String(summary.playerStats.kd).replace(",", "."));
+  const kills = Number.parseFloat(String(summary.playerStats.kills).replace(",", "."));
+
+  if (summary.isWin && kd >= 1.3) {
+    return `Grosse perf sur **${summary.map}**. Ca sent le joueur qui a transforme la lobby en terrain prive.`;
+  }
+
+  if (summary.isWin) {
+    return `Victoire validee sur **${summary.map}**. Pas le plus sale hold-up de l'histoire, mais les points sont bien a la maison.`;
+  }
+
+  if (!summary.isWin && kills >= 20) {
+    return `Defaite sur **${summary.map}**, mais avec des chiffres qui disent clairement "mon dos porte encore l'equipe".`;
+  }
+
+  if (!summary.isWin && kd < 0.9) {
+    return `Soiree compliquee sur **${summary.map}**. Le crosshair etait peut-etre encore dans l'echauffement.`;
+  }
+
+  return `Match termine sur **${summary.map}**. Ca pique un peu, mais il y a matiere a rebondir des la prochaine queue.`;
 }
 
 function normalizeDiscordError(error) {

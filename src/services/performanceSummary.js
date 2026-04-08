@@ -96,6 +96,7 @@ function buildPlayerCard(player, matches) {
   return {
     playerId: player.playerId,
     nickname: player.nickname,
+    avatar: player.avatar,
     faceitUrl: buildFaceitProfileUrl(player.nickname),
     gameId: player.gameId,
     skillLevel: player.skillLevel,

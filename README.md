@@ -18,6 +18,7 @@ Le bot enregistre une commande `/faceit` avec sous-commandes :
 - `/faceit status`
 - `/faceit players`
 - `/faceit leaderboard`
+- `/faceit analyze nickname:<pseudo> membre:@joueur`
 - `/faceit add nickname:<pseudo>`
 - `/faceit remove nickname:<pseudo>`
 - `/faceit channel`
@@ -44,6 +45,9 @@ copy .env.example .env
 - `DISCORD_BOT_TOKEN`
 - `DISCORD_GUILD_ID`
 - `FACEIT_API_KEY`
+- `OPENROUTER_API_KEY`
+- `OPENROUTER_MODEL`
+- `APP_URL`
 - `PORT`
 
 4. Lancer le projet :
@@ -66,6 +70,7 @@ http://localhost:3000
 - sinon le bot enregistre les commandes globalement et Discord peut prendre un peu de temps a les afficher
 - utilise `/faceit channel` dans le salon souhaite pour definir le salon des notifications
 - `/faceit add` importe aussi un lot d'anciens matchs pour alimenter le dashboard et le classement
+- `/faceit analyze` lance une analyse humouristique du profil avec OpenRouter
 
 ## Configuration FACEIT
 
@@ -80,6 +85,7 @@ http://localhost:3000
 - l'etat du bot est stocke dans `DATA_DIR/state.json`
 - l'historique archive des matchs permet de calculer le leaderboard et les stats des joueurs
 - le dashboard inclut aussi une zone analytics avec progression en points de performance
+- le leaderboard Discord est formate en embed avec medals, forme recente et vibe plus arcade
 
 ## Deploiement Railway
 
@@ -92,6 +98,9 @@ Le projet est pret pour Railway avec `railway.toml` et un endpoint `GET /health`
    - `DISCORD_BOT_TOKEN=...`
    - `DISCORD_GUILD_ID=...` pour enregistrer les slash commands instantanement sur ton serveur
    - `FACEIT_API_KEY=...`
+   - `OPENROUTER_API_KEY=...`
+   - `OPENROUTER_MODEL=google/gemma-4-26b-a4b-it`
+   - `APP_URL=https://ton-app.railway.app`
 3. Attache un volume Railway monte sur `/data` pour conserver :
    - les joueurs suivis
    - le salon Discord configure

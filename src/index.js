@@ -3,17 +3,25 @@ import { DiscordBot } from "./services/discordBot.js";
 import { FaceitService } from "./services/faceitService.js";
 import { MatchTracker } from "./services/matchTracker.js";
 import { NotificationService } from "./services/notificationService.js";
+import { OpenRouterService } from "./services/openRouterService.js";
 import { Store } from "./config/store.js";
 import { createWebServer } from "./web/server.js";
 
 const port = Number(process.env.PORT || 3000);
 const dataDir = process.env.DATA_DIR || "./data";
 const guildId = process.env.DISCORD_GUILD_ID || "";
+const appUrl = process.env.APP_URL || "";
 
 const store = new Store({ dataDir });
 await store.init();
 
 const faceitService = new FaceitService(process.env.FACEIT_API_KEY);
+const openRouterService = new OpenRouterService({
+  apiKey: process.env.OPENROUTER_API_KEY,
+  model: process.env.OPENROUTER_MODEL || "google/gemma-4-26b-a4b-it",
+  appUrl,
+  appTitle: "FACEIT Tracker"
+});
 
 let discordBot;
 let notificationService;
@@ -23,6 +31,7 @@ discordBot = new DiscordBot({
   token: process.env.DISCORD_BOT_TOKEN,
   guildId,
   store,
+  openRouterService,
   matchTracker: {
     addPlayer: (...args) => matchTracker.addPlayer(...args),
     checkNow: (...args) => matchTracker.checkNow(...args),
