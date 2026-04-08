@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FACEIT Performance Control Room</title>
+    <title>FACEIT Control Room</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -17,205 +17,142 @@
     <div class="bg-orb bg-orb-b"></div>
 
     <main class="shell">
-      <section class="hero-panel card">
-        <div class="hero-copy">
-          <p class="eyebrow">FACEIT Performance Control Room</p>
-          <h1>Un cockpit plus vivant pour tracker les joueurs, les perfs et les alerts Discord.</h1>
-          <p class="lead">
-            Slash commands, suivi de performance, sauvegarde exportable et stockage persistant pour Railway.
-          </p>
-          <div class="command-ribbon">
-            <span>/faceit add</span>
-            <span>/faceit players</span>
-            <span>/faceit status</span>
-            <span>/faceit test</span>
-          </div>
+      <header class="topbar card">
+        <div>
+          <p class="eyebrow">FACEIT Tracker</p>
+          <h1 class="topbar-title">Cockpit des joueurs, stats, profils et admin.</h1>
         </div>
-        <div class="hero-side">
-          <div id="health-grid" class="signal-grid"></div>
-          <div id="storage-grid" class="storage-grid"></div>
-        </div>
+        <nav class="topbar-nav">
+          <a href="/" data-nav>Vue Generale</a>
+          <a href="/admin" data-nav>Admin</a>
+        </nav>
+        <form id="global-search-form" class="searchbar">
+          <input id="global-search-input" placeholder="Chercher un joueur FACEIT" />
+          <button type="submit">Ouvrir</button>
+        </form>
+      </header>
+
+      <section class="hero-strip card" id="hero-strip"></section>
+
+      <section id="overview-view" class="page-view">
+        <div id="overview-kpis" class="kpi-grid"></div>
+        <section class="layout-two">
+          <article class="card">
+            <div class="section-head">
+              <div>
+                <p class="section-tag">Roster</p>
+                <h2>Joueurs suivis</h2>
+              </div>
+              <form id="player-form" class="inline-form">
+                <input id="nickname" name="nickname" placeholder="Pseudo FACEIT" />
+                <button type="submit">Ajouter</button>
+              </form>
+            </div>
+            <div id="overview-player-grid" class="player-grid"></div>
+          </article>
+
+          <article class="card">
+            <div class="section-head">
+              <div>
+                <p class="section-tag">Classement</p>
+                <h2>Overall leaderboard</h2>
+              </div>
+            </div>
+            <div id="overview-leaderboard" class="leaderboard"></div>
+          </article>
+        </section>
+
+        <section class="layout-two">
+          <article class="card">
+            <div class="section-head">
+              <div>
+                <p class="section-tag">Overall</p>
+                <h2>Vue d'ensemble</h2>
+              </div>
+            </div>
+            <div id="overall-summary" class="summary-grid"></div>
+          </article>
+
+          <article class="card">
+            <div class="section-head">
+              <div>
+                <p class="section-tag">Feed</p>
+                <h2>Derniers matchs</h2>
+              </div>
+            </div>
+            <div id="overview-feed" class="match-list"></div>
+          </article>
+        </section>
       </section>
 
-      <section id="global-kpis" class="kpi-grid"></section>
-
-      <nav class="dashboard-nav card">
-        <a href="#analytics">Analytics</a>
-        <a href="#players">Players</a>
-        <a href="#ops">Ops</a>
-        <a href="#feed">Feed</a>
-      </nav>
-
-      <section id="analytics" class="grid-two">
-        <article class="card chart-card">
-          <div class="section-head">
-            <div>
-              <p class="section-tag">Analytics</p>
-              <h2>Progression des points de performance</h2>
-            </div>
-            <div class="chart-controls">
-              <label class="compact-label">
-                Vue
-                <select id="chart-mode">
-                  <option value="overview">Equipe</option>
-                  <option value="player">Joueur</option>
-                </select>
-              </label>
-              <label class="compact-label">
-                Joueur
-                <select id="chart-player"></select>
-              </label>
-            </div>
-          </div>
-          <div id="chart-meta" class="chart-meta"></div>
-          <div id="performance-chart" class="chart-stage"></div>
-        </article>
-
-        <article class="card">
-          <div class="section-head">
-            <div>
-              <p class="section-tag">Timeline</p>
-              <h2>Dernieres tendances</h2>
-            </div>
-          </div>
-          <div id="trend-strip" class="trend-strip"></div>
-        </article>
+      <section id="player-view" class="page-view" hidden>
+        <div id="player-page"></div>
       </section>
 
-      <section id="players" class="grid-two">
-        <article class="card">
-          <div class="section-head">
-            <div>
-              <p class="section-tag">Tracking</p>
-              <h2>Joueurs suivis</h2>
+      <section id="admin-view" class="page-view" hidden>
+        <div class="layout-two">
+          <article class="card">
+            <div class="section-head">
+              <div>
+                <p class="section-tag">Admin</p>
+                <h2>Configuration</h2>
+              </div>
             </div>
-            <form id="player-form" class="inline-form">
-              <input id="nickname" name="nickname" placeholder="Pseudo FACEIT" />
-              <button type="submit">Ajouter</button>
+            <form id="settings-form" class="stack">
+              <label>
+                Salon Discord
+                <input id="discordChannelId" name="discordChannelId" placeholder="123456789012345678" />
+              </label>
+              <label>
+                Jeu FACEIT
+                <input id="gameId" name="gameId" value="cs2" />
+              </label>
+              <label>
+                Intervalle de verification (secondes)
+                <input id="pollIntervalSeconds" name="pollIntervalSeconds" type="number" min="30" max="3600" />
+              </label>
+              <button type="submit">Sauvegarder</button>
             </form>
-          </div>
-          <div id="player-deck" class="player-deck"></div>
-        </article>
+          </article>
 
-        <article class="card">
-          <div class="section-head">
-            <div>
-              <p class="section-tag">Ranking</p>
-              <h2>Leaderboard</h2>
-            </div>
-          </div>
-          <div id="leaderboard" class="leaderboard"></div>
-        </article>
-      </section>
-
-      <section id="player-lab" class="card">
-        <div class="section-head">
-          <div>
-            <p class="section-tag">Player Lab</p>
-            <h2>Detail joueur</h2>
-          </div>
-        </div>
-        <div class="player-lab-layout">
-          <aside class="player-summary-card" id="player-detail-summary"></aside>
-          <div class="player-lab-graphs">
-            <article class="mini-chart-card wide">
-              <div class="mini-chart-head">
-                <span class="tiny">K/D curve</span>
-                <strong id="kd-chart-title">K/D evolution</strong>
+          <article class="card">
+            <div class="section-head">
+              <div>
+                <p class="section-tag">Operations</p>
+                <h2>Actions rapides</h2>
               </div>
-              <div id="kd-chart" class="chart-stage compact"></div>
-            </article>
-            <article class="mini-chart-card">
-              <div class="mini-chart-head">
-                <span class="tiny">Kills</span>
-                <strong>Kills par match</strong>
-              </div>
-              <div id="kills-chart" class="chart-stage compact small"></div>
-            </article>
-            <article class="mini-chart-card">
-              <div class="mini-chart-head">
-                <span class="tiny">Heat</span>
-                <strong>Forme recente</strong>
-              </div>
-              <div id="heat-grid" class="heat-grid"></div>
-            </article>
-          </div>
+            </div>
+            <div class="stack">
+              <button id="check-now">Verifier maintenant</button>
+              <button id="test-notification" class="secondary">Envoyer une notification de test</button>
+              <button id="backup-download" class="ghost">Telecharger la sauvegarde</button>
+            </div>
+            <div id="admin-health" class="signal-grid admin-block"></div>
+            <div id="admin-storage" class="summary-grid admin-block"></div>
+          </article>
         </div>
-      </section>
 
-      <section id="ops" class="grid-two">
-        <article class="card">
-          <div class="section-head">
-            <div>
-              <p class="section-tag">Configuration</p>
-              <h2>Parametres du bot</h2>
+        <div class="layout-two">
+          <article class="card">
+            <div class="section-head">
+              <div>
+                <p class="section-tag">Runtime</p>
+                <h2>Etat technique</h2>
+              </div>
             </div>
-          </div>
-          <form id="settings-form" class="stack">
-            <label>
-              Salon Discord
-              <input id="discordChannelId" name="discordChannelId" placeholder="123456789012345678" />
-            </label>
-            <label>
-              Jeu FACEIT
-              <input id="gameId" name="gameId" value="cs2" />
-            </label>
-            <label>
-              Intervalle de verification (secondes)
-              <input id="pollIntervalSeconds" name="pollIntervalSeconds" type="number" min="30" max="3600" />
-            </label>
-            <button type="submit">Sauvegarder</button>
-          </form>
-        </article>
+            <div id="admin-runtime" class="summary-grid"></div>
+          </article>
 
-        <article class="card">
-          <div class="section-head">
-            <div>
-              <p class="section-tag">Ops</p>
-              <h2>Actions rapides</h2>
+          <article class="card">
+            <div class="section-head">
+              <div>
+                <p class="section-tag">Database</p>
+                <h2>Stockage & snapshots</h2>
+              </div>
             </div>
-          </div>
-          <div class="stack">
-            <button id="check-now">Verifier maintenant</button>
-            <button id="test-notification" class="secondary">Envoyer une notification de test</button>
-            <button id="backup-download" class="ghost">Telecharger la sauvegarde</button>
-            <p class="hint">
-              Pour Railway, garde `DATA_DIR=/data` et monte un volume pour conserver les joueurs et l'historique.
-            </p>
-          </div>
-        </article>
-      </section>
-
-      <section class="grid-two">
-        <article class="card">
-          <div class="section-head">
-            <div>
-              <p class="section-tag">Runtime</p>
-              <h2>Etat live</h2>
-            </div>
-          </div>
-          <dl class="meta-grid" id="runtime"></dl>
-        </article>
-
-        <article class="card">
-          <div class="section-head">
-            <div>
-              <p class="section-tag">Highlights</p>
-              <h2>Top performers</h2>
-            </div>
-          </div>
-          <div id="highlights" class="highlight-grid"></div>
-        </article>
-      </section>
-
-      <section id="feed" class="card">
-        <div class="section-head">
-          <div>
-            <p class="section-tag">Feed</p>
-            <h2>Derniers matchs detectes</h2>
-          </div>
+            <div id="admin-database" class="summary-grid"></div>
+          </article>
         </div>
-        <div id="recent-matches" class="match-grid"></div>
       </section>
 
       <p id="flash" class="flash" hidden></p>

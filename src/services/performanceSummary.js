@@ -2,9 +2,14 @@ export function buildDashboardSummary(state, storageInfo = {}) {
   const trackedPlayers = Array.isArray(state.trackedPlayers) ? state.trackedPlayers : [];
   const matchHistory = Array.isArray(state.matchHistory) ? state.matchHistory : [];
   const recentMatches = Array.isArray(state.recentMatches) ? state.recentMatches : [];
+  const eloSnapshots = state.eloSnapshots ?? {};
   const groupedByPlayer = groupMatchesByPlayer(matchHistory);
   const playerCards = trackedPlayers.map((player) =>
-    buildPlayerCard(player, groupedByPlayer.get(player.nickname.toLowerCase()) ?? [])
+    buildPlayerCard(
+      player,
+      groupedByPlayer.get(player.nickname.toLowerCase()) ?? [],
+      eloSnapshots[player.playerId] ?? []
+    )
   );
   const activePlayerCards = playerCards.filter((entry) => entry.metrics.matches > 0);
 
@@ -60,17 +65,23 @@ export function buildDashboardSummary(state, storageInfo = {}) {
       wins: globalWins,
       losses: globalLosses
     },
+    overall: {
+      totalElo: sum(activePlayerCards, (entry) => Number(entry.elo ?? 0)),
+      averageElo: average(activePlayerCards, (entry) => Number(entry.elo ?? 0), 0),
+      bestElo: sortCards(activePlayerCards, (entry) => Number(entry.elo ?? 0))[0] ?? null
+    },
     charts: {
       overview: buildOverviewChart(matchHistory),
       players: activePlayerCards.map((entry) => ({
         nickname: entry.nickname,
-        series: buildPlayerTimeline(groupedByPlayer.get(entry.nickname.toLowerCase()) ?? [])
+        series: buildPlayerTimeline(groupedByPlayer.get(entry.nickname.toLowerCase()) ?? []),
+        eloSeries: entry.eloSeries
       }))
     }
   };
 }
 
-function buildPlayerCard(player, matches) {
+function buildPlayerCard(player, matches, eloSeries) {
   const wins = matches.filter((entry) => entry.isWin === true).length;
   const losses = matches.filter((entry) => entry.isWin === false).length;
   const recentForm = matches
@@ -119,6 +130,17 @@ function buildPlayerCard(player, matches) {
       impactScore
     },
     chartSeries: buildPlayerTimeline(matches),
+    eloSeries: normalizeEloSeries(eloSeries),
+    objectiveReport: buildObjectiveReport({
+      matchesCount: matches.length,
+      averageKd,
+      averageHs,
+      averageKills,
+      averageDeaths,
+      winRate: percentage(wins, matches.length),
+      streak,
+      elo: Number(player.elo ?? 0)
+    }),
     lastMatch: matches[0]
       ? {
           result: matches[0].result,
@@ -128,6 +150,67 @@ function buildPlayerCard(player, matches) {
         }
       : null
   };
+}
+
+function buildObjectiveReport(metrics) {
+  const strengths = [];
+  const weaknesses = [];
+  const focus = [];
+
+  if (metrics.averageKd >= 1.15) {
+    strengths.push("Bonne stabilite au duel, le K/D montre une vraie constance.");
+  }
+  if (metrics.averageHs >= 45) {
+    strengths.push("Precision correcte, le taux de headshots est un vrai point fort.");
+  }
+  if (metrics.winRate >= 55) {
+    strengths.push("Impact positif sur les issues de matchs, le win rate suit.");
+  }
+  if (metrics.averageKills >= 20) {
+    strengths.push("Capable de generer du volume de kills de facon reguliere.");
+  }
+
+  if (metrics.averageKd < 1) {
+    weaknesses.push("Le ratio kill/death reste fragile et coute des rounds.");
+  }
+  if (metrics.averageDeaths > metrics.averageKills) {
+    weaknesses.push("Trop d'exposition en round, les morts depassent le volume offensif.");
+  }
+  if (metrics.winRate < 45) {
+    weaknesses.push("Les resultats d'equipe ne suivent pas encore les intentions.");
+  }
+  if (metrics.streak.positive === false && metrics.streak.count >= 3) {
+    weaknesses.push("Serie negative en cours, il faut casser la dynamique.");
+  }
+
+  if (!strengths.length) {
+    strengths.push("Profil encore en construction, les points forts apparaitront avec plus de matchs.");
+  }
+  if (!weaknesses.length) {
+    weaknesses.push("Pas de faille majeure evidente sur l'echantillon actuel.");
+  }
+
+  focus.push("Prioriser les rounds a forte valeur plutot que forcer les fights neutres.");
+  focus.push("Verifier la regularite du debut de match pour mieux lancer la dynamique.");
+
+  if (metrics.averageKd < 1) {
+    focus.push("Travailler le placement post-contact pour reduire les morts gratuites.");
+  } else {
+    focus.push("Transformer la bonne base individuelle en impact encore plus decisif en round cle.");
+  }
+
+  return { strengths, weaknesses, focus };
+}
+
+function normalizeEloSeries(series) {
+  return [...series]
+    .map((entry, index) => ({
+      index: index + 1,
+      recordedAt: entry.recordedAt,
+      elo: Number(entry.elo ?? 0),
+      skillLevel: entry.skillLevel ?? null
+    }))
+    .sort((left, right) => dateValue(left.recordedAt) - dateValue(right.recordedAt));
 }
 
 function buildOverviewChart(matches) {

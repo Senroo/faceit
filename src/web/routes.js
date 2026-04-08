@@ -11,6 +11,7 @@ export function createRouter({ store, matchTracker, discordBot, faceitService })
       metadata: state.metadata,
       settings: state.settings,
       trackedPlayers: state.trackedPlayers,
+      eloSnapshots: state.eloSnapshots,
       recentMatches: state.recentMatches,
       matchHistory: state.matchHistory,
       runtime: state.runtime,

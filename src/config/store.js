@@ -3,7 +3,7 @@ import path from "node:path";
 
 const DEFAULT_STATE = {
   metadata: {
-    schemaVersion: 2,
+    schemaVersion: 3,
     createdAt: null,
     updatedAt: null
   },
@@ -14,6 +14,7 @@ const DEFAULT_STATE = {
   },
   trackedPlayers: [],
   processedMatches: {},
+  eloSnapshots: {},
   recentMatches: [],
   matchHistory: [],
   runtime: {
@@ -55,7 +56,11 @@ export class Store {
       updatedAt: this.state.metadata.updatedAt,
       createdAt: this.state.metadata.createdAt,
       trackedPlayersCount: this.state.trackedPlayers.length,
-      matchHistoryCount: this.state.matchHistory.length
+      matchHistoryCount: this.state.matchHistory.length,
+      snapshotCount: Object.values(this.state.eloSnapshots ?? {}).reduce(
+        (count, entries) => count + (Array.isArray(entries) ? entries.length : 0),
+        0
+      )
     };
   }
 
@@ -140,6 +145,32 @@ export class Store {
     return this.getState();
   }
 
+  async addEloSnapshot(playerId, snapshot) {
+    const existing = Array.isArray(this.state.eloSnapshots[playerId])
+      ? this.state.eloSnapshots[playerId]
+      : [];
+    const normalized = {
+      recordedAt: snapshot.recordedAt ?? new Date().toISOString(),
+      elo: Number(snapshot.elo ?? 0),
+      skillLevel: snapshot.skillLevel ?? null,
+      nickname: snapshot.nickname ?? null
+    };
+    const last = existing[existing.length - 1];
+
+    if (
+      last &&
+      last.elo === normalized.elo &&
+      last.skillLevel === normalized.skillLevel &&
+      last.nickname === normalized.nickname
+    ) {
+      return this.getState();
+    }
+
+    this.state.eloSnapshots[playerId] = [...existing, normalized].slice(-120);
+    await this.save();
+    return this.getState();
+  }
+
   async addRecentMatch(matchSummary, options = {}) {
     const includeInRecent = options.includeInRecent !== false;
     const entry = {
@@ -178,6 +209,10 @@ function mergeState(base, incoming) {
     processedMatches: {
       ...base.processedMatches,
       ...(incoming?.processedMatches ?? {})
+    },
+    eloSnapshots: {
+      ...base.eloSnapshots,
+      ...(incoming?.eloSnapshots ?? {})
     },
     recentMatches: Array.isArray(incoming?.recentMatches)
       ? incoming.recentMatches

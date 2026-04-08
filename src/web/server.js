@@ -12,6 +12,9 @@ export function createWebServer(services) {
   });
   app.use(express.static(publicDir));
   app.use("/api", createRouter(services));
+  app.get(/^\/(?!api|health).*/, (_request, response) => {
+    response.sendFile(path.join(publicDir, "index.html"));
+  });
 
   app.use((error, request, response, _next) => {
     const status = getHttpStatus(error);

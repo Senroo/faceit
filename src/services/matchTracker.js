@@ -35,6 +35,11 @@ export class MatchTracker {
       gameId,
       addedAt: existingPlayer?.addedAt ?? new Date().toISOString()
     });
+    await this.store.addEloSnapshot(player.playerId, {
+      elo: player.elo,
+      skillLevel: player.skillLevel,
+      nickname: player.nickname
+    });
 
     const backfilled = await this.backfillPlayerHistory({
       ...player,
@@ -125,9 +130,10 @@ export class MatchTracker {
   }
 
   async processPlayer(player, fallbackGameId) {
-    const gameId = player.gameId ?? fallbackGameId;
-    const history = await this.faceitService.getPlayerHistory(player.playerId, gameId, 20);
-    const lastProcessedMatchId = this.store.getState().processedMatches[player.playerId];
+    const refreshedPlayer = await this.refreshPlayerProfile(player);
+    const gameId = refreshedPlayer.gameId ?? fallbackGameId;
+    const history = await this.faceitService.getPlayerHistory(refreshedPlayer.playerId, gameId, 20);
+    const lastProcessedMatchId = this.store.getState().processedMatches[refreshedPlayer.playerId];
 
     const pendingMatches = [];
     for (const entry of history) {
@@ -139,14 +145,30 @@ export class MatchTracker {
     }
 
     for (const match of pendingMatches.reverse()) {
-      const summary = await this.buildMatchSummary(player, match);
+      const summary = await this.buildMatchSummary(refreshedPlayer, match);
       await this.notificationService.sendMatchFinished(summary);
       await this.store.addRecentMatch(summary, { includeInRecent: true });
     }
 
     if (history[0]?.match_id) {
-      await this.store.setProcessedMatch(player.playerId, history[0].match_id);
+      await this.store.setProcessedMatch(refreshedPlayer.playerId, history[0].match_id);
     }
+  }
+
+  async refreshPlayerProfile(player) {
+    const latest = await this.faceitService.getPlayerByNickname(player.nickname);
+    const merged = {
+      ...player,
+      ...latest,
+      addedAt: player.addedAt
+    };
+    await this.store.upsertTrackedPlayer(merged);
+    await this.store.addEloSnapshot(merged.playerId, {
+      elo: merged.elo,
+      skillLevel: merged.skillLevel,
+      nickname: merged.nickname
+    });
+    return merged;
   }
 
   async buildMatchSummary(player, historyMatch) {
