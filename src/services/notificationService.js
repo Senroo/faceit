@@ -24,33 +24,30 @@ export class NotificationService {
     const embed = new EmbedBuilder()
       .setColor(summary.result === "Victoire" ? 0x22c55e : 0xef4444)
       .setAuthor({
-        name: `${summary.trackedNickname} - ${summary.result}`,
+        name: "Faceit Tracker",
         iconURL: summary.avatar || undefined,
         url: summary.faceitProfileUrl || summary.faceitMatchUrl || undefined
       })
-      .setTitle(`${summary.competitionName}`)
-      .setDescription(buildCompactMatchFlavor(summary))
+      .setTitle(`${summary.trackedNickname} - ${summary.isWin ? "Win" : "Loss"}`)
       .addFields(
-        { name: "Map", value: summary.map, inline: true },
-        { name: "Score", value: summary.score, inline: true },
-        { name: "Duree", value: summary.duration || "N/A", inline: true },
-        { name: "ELO / Level", value: `${summary.elo ?? "?"} / ${summary.skillLevel ?? "?"}`, inline: true },
+        { name: "Map", value: summary.map || "N/A", inline: true },
+        { name: "Score", value: summary.score || "N/A", inline: true },
         {
-          name: "KDA",
+          name: "K/D/A",
           value: `${summary.playerStats.kills}/${summary.playerStats.deaths}/${summary.playerStats.assists}`,
           inline: true
         },
         { name: "K/D", value: String(summary.playerStats.kd), inline: true },
-        { name: "K/R", value: String(summary.playerStats.kr), inline: true },
-        { name: "HS%", value: String(summary.playerStats.hs), inline: true },
-        { name: "MVPs", value: String(summary.playerStats.mvps), inline: true }
+        { name: "HS%", value: formatPercent(summary.playerStats.hs), inline: true },
+        { name: "MVPs", value: String(summary.playerStats.mvps), inline: true },
+        {
+          name: "Match",
+          value: summary.faceitMatchUrl ? `[Faceit](${summary.faceitMatchUrl})` : "N/A",
+          inline: true
+        }
       )
       .setTimestamp(summary.finishedAt ? new Date(summary.finishedAt) : new Date())
-      .setFooter({ text: `FACEIT Tracker | Match ID ${summary.matchId}` });
-
-    if (summary.avatar) {
-      embed.setThumbnail(summary.avatar);
-    }
+      .setFooter({ text: `Faceit Tracker • ${summary.trackedNickname}` });
 
     if (summary.faceitMatchUrl) {
       embed.setURL(summary.faceitMatchUrl);
@@ -75,7 +72,7 @@ export class NotificationService {
 
     const embed = new EmbedBuilder()
       .setColor(0x3b82f6)
-      .setTitle("🎯 FACEIT Tracker online")
+      .setTitle("FACEIT Tracker online")
       .setDescription("Le bot est bien branche. Les notifs, le ranking et le trash talk analytique sont prets.")
       .setTimestamp(new Date());
 
@@ -87,27 +84,13 @@ export class NotificationService {
   }
 }
 
-function buildCompactMatchFlavor(summary) {
-  const kd = Number.parseFloat(String(summary.playerStats.kd).replace(",", "."));
-  const kills = Number.parseFloat(String(summary.playerStats.kills).replace(",", "."));
-
-  if (summary.isWin && kd >= 1.3) {
-    return `Grosse perf. La lobby a surtout servi de terrain d'entrainement pour ${summary.trackedNickname}.`;
+function formatPercent(value) {
+  if (value === undefined || value === null || value === "") {
+    return "N/A";
   }
 
-  if (summary.isWin) {
-    return `Victoire propre. Les points sont a la maison et le lobby repart avec un petit traumatisme.`;
-  }
-
-  if (!summary.isWin && kills >= 20) {
-    return `Defaite, mais les stats racontent surtout une histoire de sac a dos tres lourd.`;
-  }
-
-  if (!summary.isWin && kd < 0.9) {
-    return `Soiree compliquee. Le crosshair a pris le match avec quelques rounds de retard.`;
-  }
-
-  return `Match termine. Pas le meilleur chapitre, mais clairement pas la fin de saison.`;
+  const text = String(value);
+  return text.includes("%") ? text : `${text}%`;
 }
 
 function normalizeDiscordError(error) {
