@@ -219,6 +219,10 @@ export class MatchTracker {
         kd: playerStats?.player_stats?.["K/D Ratio"] ?? "N/A",
         kr: playerStats?.player_stats?.["K/R Ratio"] ?? "N/A",
         hs: playerStats?.player_stats?.["Headshots %"] ?? "N/A",
+        adr:
+          playerStats?.player_stats?.ADR ??
+          playerStats?.player_stats?.["Average Damage per Round"] ??
+          "N/A",
         mvps: playerStats?.player_stats?.MVPs ?? "N/A"
       }
     };

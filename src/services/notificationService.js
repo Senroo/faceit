@@ -29,25 +29,31 @@ export class NotificationService {
         url: summary.faceitProfileUrl || summary.faceitMatchUrl || undefined
       })
       .setTitle(`${summary.trackedNickname} - ${summary.isWin ? "Win" : "Loss"}`)
+      .setDescription(buildScoreCardHeader(summary))
       .addFields(
-        { name: "Map", value: summary.map || "N/A", inline: true },
-        { name: "Score", value: summary.score || "N/A", inline: true },
+        { name: "🗺️ Map", value: summary.map || "N/A", inline: true },
+        { name: "🏆 Score", value: summary.score || "N/A", inline: true },
         {
-          name: "K/D/A",
+          name: "⚔️ K/D/A",
           value: `${summary.playerStats.kills}/${summary.playerStats.deaths}/${summary.playerStats.assists}`,
           inline: true
         },
-        { name: "K/D", value: String(summary.playerStats.kd), inline: true },
-        { name: "HS%", value: formatPercent(summary.playerStats.hs), inline: true },
-        { name: "MVPs", value: String(summary.playerStats.mvps), inline: true },
+        { name: "📊 K/D", value: String(summary.playerStats.kd), inline: true },
+        { name: "🎯 HS%", value: formatPercent(summary.playerStats.hs), inline: true },
+        { name: "💥 ADR", value: formatStat(summary.playerStats.adr), inline: true },
+        { name: "⭐ MVPs", value: String(summary.playerStats.mvps), inline: true },
         {
-          name: "Match",
+          name: "🔗 Match",
           value: summary.faceitMatchUrl ? `[Faceit](${summary.faceitMatchUrl})` : "N/A",
           inline: true
         }
       )
       .setTimestamp(summary.finishedAt ? new Date(summary.finishedAt) : new Date())
-      .setFooter({ text: `Faceit Tracker • ${summary.trackedNickname}` });
+      .setFooter({ text: `Faceit Tracker | ${summary.trackedNickname}` });
+
+    if (summary.avatar) {
+      embed.setThumbnail(summary.avatar);
+    }
 
     if (summary.faceitMatchUrl) {
       embed.setURL(summary.faceitMatchUrl);
@@ -84,6 +90,14 @@ export class NotificationService {
   }
 }
 
+function buildScoreCardHeader(summary) {
+  const statusIcon = summary.isWin ? "🟢" : "🔴";
+  const level = summary.skillLevel ? `Lvl ${summary.skillLevel}` : "Lvl ?";
+  const elo = summary.elo ? `${summary.elo} ELO` : "ELO ?";
+  const duration = summary.duration || "N/A";
+  return `${statusIcon} ${summary.trackedNickname} • ${summary.isWin ? "Win" : "Loss"}\n${elo} • ${level} • ${duration}`;
+}
+
 function formatPercent(value) {
   if (value === undefined || value === null || value === "") {
     return "N/A";
@@ -91,6 +105,14 @@ function formatPercent(value) {
 
   const text = String(value);
   return text.includes("%") ? text : `${text}%`;
+}
+
+function formatStat(value) {
+  if (value === undefined || value === null || value === "") {
+    return "N/A";
+  }
+
+  return String(value);
 }
 
 function normalizeDiscordError(error) {
